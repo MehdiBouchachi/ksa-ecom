@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+/* Design tokens (shadcn-compatible names). One accent colour; neutral stone surfaces. */
+@theme {
+  --color-background: #fafaf9;
+  --color-foreground: #1c1917;
+  --color-card: #ffffff;
+  --color-muted: #f5f5f4;
+  --color-muted-foreground: #57534e;
+  --color-border: #e7e5e4;
+  --color-input: #d6d3d1;
+  --color-primary: #115e59;
+  --color-primary-foreground: #ffffff;
+  --color-accent: #f0fdfa;
+  --color-destructive: #b91c1c;
+  --color-success: #15803d;
+  --color-warning: #a16207;
+  --color-ring: #0f766e;
+  --radius-md: 0.5rem;
+  --font-sans: "Segoe UI", "Noto Sans Arabic", "Noto Kufi Arabic", Tahoma, "Geeza Pro", system-ui, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+.skip-link {
+  position: absolute;
+  inset-inline-start: 1rem;
+  top: -4rem;
+  z-index: 50;
+  background: var(--color-primary);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+}
+.skip-link:focus {
+  top: 1rem;
+}
+.prose-ar p { margin-block: 0.75rem; }
+.prose-ar h2 { font-size: 1.25rem; font-weight: 700; margin-block: 1.25rem 0.5rem; }
+.prose-ar ul { list-style: disc; padding-inline-start: 1.5rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

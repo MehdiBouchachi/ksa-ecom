@@ -1,0 +1,57 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      # Real PostgreSQL for integration + concurrency tests (CI only; never on Hostinger Business).
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: saudi_ecom_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/saudi_ecom_test
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - name: Migrations are in sync with schema
+        working-directory: apps/web
+        run: |
+          pnpm exec drizzle-kit generate --name=ci_check
+          if git status --porcelain drizzle | grep -q .; then echo "Schema changed without a committed migration"; git status drizzle; exit 1; fi
+      - name: Unit + integration (real PostgreSQL, concurrency)
+        run: pnpm test
+      - run: pnpm build
+      - name: E2E smoke (production build, Chromium)
+        working-directory: apps/web
+        run: |
+          npx playwright install --with-deps chromium
+          psql "$TEST_DATABASE_URL" -c "drop schema public cascade; create schema public; drop schema if exists drizzle cascade;"
+          pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-screenshots
+          path: apps/web/test-results/e2e

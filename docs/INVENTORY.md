@@ -1,0 +1,15 @@
+# Inventory & payment correctness — RELEASE BLOCKER (PostgreSQL)
+**Invariant per sellable color+size variant:** `on_hand >= 0`, `reserved >= 0`, `reserved <= on_hand`; `available = on_hand - reserved`. Retail and wholesale consume the same stock. Cart browsing does not reserve. Checkout preparation does.
+
+## Prepare checkout — one PostgreSQL transaction
+1. Validate signed-in customer or approved guest policy, checkout `Idempotency-Key`, valid SKU/quantity, retail or bulk MOQ and tier, shipping address. Server recalculates prices, VAT/tax/shipping. If key seen, return prior safe response.
+2. Use Drizzle's **transaction-bound** query executor on one pooled connection, starting a PostgreSQL transaction. Lock relevant `inventory` rows using `SELECT ... FOR UPDATE` **in sorted variant-ID order**. Verify all available units within lock; if any insufficient, roll back all with HTTP 409 `STOCK_UNAVAILABLE` **before starting payment**.
+3. While transaction holds locks, increase `reserved`, insert pending order, immutable order line/price/address snapshots, reservations and expiry, and event/outbox records. `COMMIT`. Never hold a DB transaction open across external PSP/Aramex HTTP calls.
+4. After commit, create PSP session with stable provider idempotency key. Request retries must return the existing order/session where appropriate; never double charge or duplicate reservations.
+5. Verified **paid** webhook: dedupe event through PostgreSQL `UNIQUE` constraint/`INSERT ... ON CONFLICT DO NOTHING`; in one transaction lock payment/order/reservation/inventory records in a deterministic order; validate provider reference, currency and amount; mark payment/order paid; perform `on_hand -= qty; reserved -= qty` only once; enqueue confirmation. Browser return URL is never proof of payment.
+6. Failure/timeout: do not release while payment is processing. Signed cron/job reconciles PSP terminal status, then atomically releases reservation once. A late paid event after release must enter investigation/refund/manual-allocation path, not silently oversell. Make transition checks idempotent.
+7. Admin stock adjustment requires row lock and audit trail; enforce nonnegative stock and stock >= reserved. Refund/cancellation restock only when merchant business rule authorizes and only once.
+
+**PostgreSQL-specific implementation:** Use Drizzle + `pg` (`node-postgres`), explicit transactions and `SELECT ... FOR UPDATE`; enforce CHECK, FK, UNIQUE/partial indexes in PostgreSQL; `ON CONFLICT` for idempotency. At READ COMMITTED, locks serialize stock checks; use bounded retries for SQLSTATE `40P01` (deadlock) and `40001` (serialization when relevant). Never retry an external payment without provider idempotency. Use `SKIP LOCKED` only for batch outbox workers, not for customer stock availability checks.
+
+**Tests on real PostgreSQL:** 2 customers vs last unit (only one reservation), 50 concurrent attempts, multi-item all-or-nothing, wholesale tier bounds, simultaneous admin stock changes, repeated/late/out-of-order PSP events, expiry-vs-paid race, duplicate shipment/email prevention, rollback on DB exception.

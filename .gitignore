@@ -11,3 +11,6 @@ playwright-report
 test-results
 .DS_Store
 next-env.d.ts
+!.env.production.example
+apps/web/ops
+backups

@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 const securityHeaders = [
@@ -10,8 +11,13 @@ const securityHeaders = [
 
 const mediaHost = process.env.MEDIA_PUBLIC_HOST; // e.g. media.example.com (R2 custom domain) — pending approval
 
+// Docker image builds set NEXT_OUTPUT=standalone (self-contained server.js + traced node_modules).
+// Plain `next build && next start` (non-Docker hosting) is unchanged.
+const standalone = process.env.NEXT_OUTPUT === "standalone";
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  ...(standalone ? { output: "standalone" as const, outputFileTracingRoot: path.resolve(process.cwd(), "../..") } : {}),
   poweredByHeader: false,
   transpilePackages: ["@saudi-ecom/contracts"],
   serverExternalPackages: ["pg", "bcryptjs", "nodemailer"],

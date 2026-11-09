@@ -1,0 +1,52 @@
+# Production / staging overlay (e.g. Hostinger VPS). Automatic HTTPS via Caddy + Let's Encrypt.
+#
+#   cp .env.production.example .env.production   # ON THE SERVER ONLY (git-ignored), fill real values
+#   docker compose --env-file .env.production -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#   (or simply: scripts/deploy.sh)
+#
+# DNS for DOMAIN must point to the server; ports 80/443 open. Generated secrets still come from the
+# private volume; only third-party credentials (SMTP, PSP, Aramex…) live in .env.production.
+
+services:
+  app:
+    ports: !reset [] # only reachable through Caddy
+    environment:
+      APP_URL: https://${DOMAIN:?set DOMAIN in .env.production}
+      ALLOW_INDEXING: ${ALLOW_INDEXING:-false}
+      SEED_DEMO: ${SEED_DEMO:-0}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?set ADMIN_EMAIL in .env.production}
+      ALLOW_MOCK_PAYMENTS: ${ALLOW_MOCK_PAYMENTS:-0}
+      ALLOW_MOCK_SHIPPING: ${ALLOW_MOCK_SHIPPING:-0}
+      SMTP_URL: ${SMTP_URL:?set SMTP_URL in .env.production}
+      MAIL_FROM: ${MAIL_FROM:?set MAIL_FROM in .env.production}
+      STAFF_ALERT_EMAIL: ${STAFF_ALERT_EMAIL:?set STAFF_ALERT_EMAIL in .env.production}
+      PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-} # from the PSP dashboard once approved
+      DATABASE_URL: ${DATABASE_URL:-} # empty = bundled postgres container
+      DATABASE_CA_CERT: ${DATABASE_CA_CERT:-}
+    build:
+      args:
+        APP_URL: https://${DOMAIN}
+
+  mailpit:
+    scale: 0 # real SMTP in production
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    depends_on:
+      app: { condition: service_healthy }
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [frontend]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+volumes:
+  caddy-data: {}
+  caddy-config: {}

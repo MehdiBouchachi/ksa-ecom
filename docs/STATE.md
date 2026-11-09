@@ -13,6 +13,8 @@ Repository: pnpm monorepo, single Next.js 16 app `apps/web`, `packages/contracts
 - T06: /admin dashboard, orders (status/cancel/restock-once), products/media URLs, variants/colours/sizes, tiers, inventory ledger, taxonomy, shipping, settings/content; Admin-only customers/team (+ invitations, last-admin guard).
 - T07: Aramex adapter boundary + sandbox mock, single-AWB guarantee, tracking sync, Arabic email outbox with retries, signed cron endpoints + `scripts/cron.sh`.
 
+- T09 (2026-11-09): Docker. `Dockerfile` (standalone Next, ops scripts bundled with esbuild), `docker-compose.yml` (zero-config: generated secrets volume, internal DB network, cron sidecar, Mailpit), `docker-compose.prod.yml` (Caddy HTTPS, no mocks/demo), `scripts/deploy.sh`, `scripts/backup.sh`, `/api/health`, first-boot `bootstrap-admin`, CI `docker` job, gated `deploy.yml` (VPS over SSH). Verified locally: build, boot, health, admin login, SMTP→Mailpit, cron signed calls, unsigned cron 403, DB not exposed, restart idempotent.
+
 ## Tests (last run)
 `pnpm test`: 54/54 passed (13 unit, 41 integration on real PostgreSQL 18 via embedded-postgres). `pnpm build`: OK. E2E smoke (production build + Chromium): PASSED. `pnpm lint` and `pnpm typecheck`: clean.
 

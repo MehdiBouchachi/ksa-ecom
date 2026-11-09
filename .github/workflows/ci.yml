@@ -4,6 +4,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -55,3 +58,24 @@ jobs:
         with:
           name: e2e-screenshots
           path: apps/web/test-results/e2e
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker compose build app
+      - name: Boot the full stack (zero configuration)
+        run: docker compose up -d --wait --wait-timeout 180
+      - name: Smoke checks
+        run: |
+          curl -fsS http://localhost:3000/api/health
+          curl -fsS -o /dev/null http://localhost:3000/
+          docker compose logs app | grep -q "ADMIN ACCOUNT"
+          # unsigned cron must be rejected; secrets must not be baked into the image
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3000/api/v1/cron/outbox)" = 403
+          ! docker image inspect saudi-ecom:latest --format '{{json .Config.Env}}' | grep -qiE 'AUTH_SECRET|CRON_SECRET|DATABASE_URL|PASSWORD'
+      - name: Logs
+        if: always()
+        run: docker compose logs --no-color | tail -150

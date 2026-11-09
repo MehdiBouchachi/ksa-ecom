@@ -13,6 +13,29 @@ Object storage (e.g. R2) ◄── product media URLs (never the Hostinger deplo
 ```
 The DB is a separate paid service. It is **not** included in Hostinger Business/Unlimited. If you move to a Hostinger **VPS** that runs both the app and PostgreSQL, you take on OS/DB patching, firewalling and backups yourself.
 
+## 1b. Docker deployment (recommended: Hostinger VPS or any Docker host)
+One image (`Dockerfile`) and one compose project: `secrets` (one-shot) → `db` (PostgreSQL 17, internal network only) → `app` (Next.js standalone) → `cron` (signed scheduler, replaces hPanel cron) [+ `caddy` HTTPS in production, `mailpit` locally].
+
+**Local / demo / teammates (zero configuration):**
+```bash
+docker compose up -d --build
+docker compose logs app | grep -A4 "ADMIN ACCOUNT"   # first-boot admin password (also in /data/admin_password.txt)
+```
+http://localhost:3000 · /admin · emails at http://localhost:8025. Demo catalogue and sandbox PSP/Aramex simulators are enabled.
+
+**Production/staging on a VPS:**
+1. Install Docker Engine + compose plugin; firewall: allow 22 (key-only SSH), 80, 443; nothing else.
+2. `git clone` to e.g. `/opt/saudi-ecom`; `cp .env.production.example .env.production`; fill DOMAIN, ADMIN_EMAIL, SMTP, PSP/Aramex values; `chmod 600 .env.production`.
+3. `scripts/deploy.sh` (pull → build → `up -d --wait`). Caddy obtains Let's Encrypt certificates for `DOMAIN`.
+4. First admin password: `docker compose logs app | grep -A4 "ADMIN ACCOUNT"`; change it immediately.
+5. CI/CD: `.github/workflows/deploy.yml` SSHes in and runs `scripts/deploy.sh` after green CI on `main` (enable with repo variable `DEPLOY_ENABLED=true`; secrets `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS`, `VPS_APP_DIR` in the GitHub `production` environment).
+
+**Where secrets live:** `AUTH_SECRET`, `CRON_SECRET`, `PAYMENT_WEBHOOK_SECRET` (mock) and the DB password are generated on first boot into the private `app-secrets` volume (never in git, the image, or compose files). Third-party credentials live only in the server's `.env.production`. Rotate a generated secret (e.g. after staff changes): `docker compose run --rm --entrypoint rm secrets /run/app-secrets/auth_secret` (or `cron_secret`), then `docker compose up -d --force-recreate secrets app cron` — the one-shot recreates only missing files. Rotating `auth_secret` signs everyone out. Do **not** delete `app-secrets` while `pgdata` exists (the DB password lives there).
+
+**Backups:** `scripts/backup.sh` (`pg_dump -Fc` to `./backups`), schedule it daily from the host crontab and copy dumps off the server. Restore drill as in §7. External managed PostgreSQL is still supported: set `DATABASE_URL` in `.env.production` (TLS verify-full applies).
+
+**Hardening in place:** non-root app, read-only root filesystem, `cap_drop: ALL`, `no-new-privileges`, PID/memory limits, DB/cron on an `internal` network (no host port), Caddy returns 404 for `/api/v1/cron/*` from the internet, no secrets in image env (checked in CI).
+
 ## 2. Choosing and verifying the PostgreSQL provider (blocker)
 Requirements: PostgreSQL ≥ 14, the `btree_gist` extension, TLS with a verifiable CA, PITR or daily backups, a region acceptable under PDPL (cross-border assessment), enough connections (pool 5 per app instance plus headroom), and public reachability from Hostinger egress (IPv4).
 

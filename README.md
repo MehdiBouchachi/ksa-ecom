@@ -9,7 +9,17 @@ Arabic-first (RTL), English-ready storefront and back office for **one product f
 
 > ⚠️ **Not production-ready until the merchant items in [`docs/STATE.md`](docs/STATE.md) are completed**: PSP and Aramex accounts, DB provider, real catalogue and prices, legal/tax/PDPL sign-off. The PSP and Aramex adapters shipped here are **sandbox simulators**.
 
-## Quick start (local)
+## Run with Docker (recommended: zero configuration)
+```bash
+docker compose up -d --build
+docker compose logs app | grep -A4 "ADMIN ACCOUNT"     # first-boot admin email + password
+```
+Store http://localhost:3000 · Admin http://localhost:3000/admin · Emails http://localhost:8025 (Mailpit).
+No `.env` needed: every secret (DB password, `AUTH_SECRET`, `CRON_SECRET`, admin password) is generated on first boot into private Docker volumes and is never committed. Demo catalogue + sandbox payment/shipping simulators are on. Stop: `docker compose down` (add `-v` to wipe all data).
+
+Production (Hostinger VPS or any Docker host, automatic HTTPS): `cp .env.production.example .env.production` **on the server**, fill it, then `scripts/deploy.sh`. See [`docs/RUNBOOK.md` §1b](docs/RUNBOOK.md).
+
+## Quick start without Docker (local dev)
 ```bash
 pnpm install
 cp .env.example apps/web/.env.local     # fill AUTH_SECRET, PAYMENT_WEBHOOK_SECRET, CRON_SECRET, DATABASE_URL

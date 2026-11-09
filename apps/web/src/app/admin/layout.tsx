@@ -1,53 +1,54 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { logoutAction } from "@/app/(auth)/auth/actions";
+import { AdminShell, type NavGroup } from "@/components/admin/shell";
+import { adminDict } from "@/i18n/admin";
+import { getLocale } from "@/i18n/locale";
 import { getCurrentUser, isStaff } from "@/server/auth/guards";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: { default: "لوحة التحكم", template: "%s | لوحة التحكم" }, robots: { index: false, follow: false } };
 
-const NAV = [
-  { href: "/admin", label: "الرئيسية" },
-  { href: "/admin/orders", label: "الطلبات" },
-  { href: "/admin/products", label: "المنتجات" },
-  { href: "/admin/variants", label: "الألوان والمقاسات" },
-  { href: "/admin/pricing", label: "أسعار الجملة" },
-  { href: "/admin/inventory", label: "المخزون" },
-  { href: "/admin/categories", label: "التصنيفات" },
-  { href: "/admin/brands", label: "العلامات" },
-  { href: "/admin/collections", label: "المجموعات" },
-  { href: "/admin/shipping", label: "الشحن" },
-  { href: "/admin/settings", label: "الإعدادات والمحتوى" },
-];
-const ADMIN_ONLY = [
-  { href: "/admin/customers", label: "العملاء" },
-  { href: "/admin/team", label: "فريق العمل" },
-];
+export async function generateMetadata() {
+  const t = adminDict(await getLocale());
+  return { title: { default: t.brand, template: `%s | ${t.brand}` }, robots: { index: false, follow: false } };
+}
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   if (!user) redirect("/auth/login?next=/admin");
   if (!isStaff(user)) redirect("/");
-  const nav = user.role === "ADMIN" ? [...NAV, ...ADMIN_ONLY] : NAV; // hidden for Managers; also enforced server-side
+  const locale = await getLocale();
+  const t = adminDict(locale);
+  const n = t.nav;
+
+  const groups: NavGroup[] = [
+    { label: t.groups.overview, items: [{ key: "dashboard", href: "/admin", label: n.dashboard }] },
+    { label: t.groups.sales, items: [{ key: "orders", href: "/admin/orders", label: n.orders }, { key: "shipping", href: "/admin/shipping", label: n.shipping }] },
+    {
+      label: t.groups.catalog,
+      items: [
+        { key: "products", href: "/admin/products", label: n.products },
+        { key: "variants", href: "/admin/variants", label: n.variants },
+        { key: "pricing", href: "/admin/pricing", label: n.pricing },
+        { key: "inventory", href: "/admin/inventory", label: n.inventory },
+        { key: "categories", href: "/admin/categories", label: n.categories },
+        { key: "brands", href: "/admin/brands", label: n.brands },
+        { key: "collections", href: "/admin/collections", label: n.collections },
+      ],
+    },
+    { label: t.groups.store, items: [{ key: "settings", href: "/admin/settings", label: n.settings }] },
+  ];
+  // Hidden for Managers (also enforced server-side on every page/action).
+  if (user.role === "ADMIN") {
+    groups.push({ label: t.groups.people, items: [{ key: "customers", href: "/admin/customers", label: n.customers }, { key: "team", href: "/admin/team", label: n.team }] });
+  }
+
   return (
-    <div className="min-h-dvh md:grid md:grid-cols-[220px_1fr]">
-      <aside className="border-b border-border bg-card md:min-h-dvh md:border-b-0 md:border-e">
-        <div className="flex items-center justify-between p-4">
-          <Link href="/admin" className="font-bold text-primary">لوحة التحكم</Link>
-          <Link href="/" className="text-xs text-muted-foreground">المتجر</Link>
-        </div>
-        <nav aria-label="لوحة التحكم" className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:overflow-visible">
-          {nav.map((n) => (
-            <Link key={n.href} href={n.href} className="whitespace-nowrap rounded-md px-3 py-2 text-sm hover:bg-muted">{n.label}</Link>
-          ))}
-        </nav>
-        <div className="hidden border-t border-border p-4 text-xs text-muted-foreground md:block">
-          <p>{user.fullName}</p>
-          <p>{user.role === "ADMIN" ? "مدير عام" : "مدير عمليات"}</p>
-          <form action={logoutAction}><button className="mt-2 text-destructive">تسجيل الخروج</button></form>
-        </div>
-      </aside>
-      <main id="main" className="min-w-0 p-4 md:p-6">{children}</main>
-    </div>
+    <AdminShell
+      locale={locale}
+      groups={groups}
+      user={{ name: user.fullName, role: t.roles[user.role as keyof typeof t.roles] ?? user.role }}
+      s={{ brand: t.brand, viewStore: t.viewStore, openMenu: t.openMenu, closeMenu: t.closeMenu, language: t.language, languageLabel: t.languageLabel, signOut: t.signOut }}
+    >
+      {children}
+    </AdminShell>
   );
 }

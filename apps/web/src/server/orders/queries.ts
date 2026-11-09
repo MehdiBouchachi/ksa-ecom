@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { canTransition, ORDER_STATUSES, ORDER_TRANSITIONS, type OrderStatus, type Role } from "@saudi-ecom/contracts";
 import { getDb, withTx } from "../db";
 import { auditLogs, orderEvents, orderItems, orders, paymentAttempts, shipmentEvents, shipments, stockReservations } from "../db/schema";
@@ -81,7 +81,10 @@ export async function listOrdersAdmin(opts: { status?: string; payment?: string;
   const page = opts.page ?? 1;
   const pageSize = Math.min(opts.pageSize ?? 25, 100);
   const conds: SQL[] = [];
-  if (opts.status && (ORDER_STATUSES as readonly string[]).includes(opts.status)) conds.push(eq(orders.orderStatus, opts.status));
+  // Single status or a comma-separated set (e.g. the dashboard's "processing" stage); unknown values are ignored.
+  const statuses = (opts.status ?? "").split(",").filter((x) => (ORDER_STATUSES as readonly string[]).includes(x));
+  if (statuses.length === 1) conds.push(eq(orders.orderStatus, statuses[0]!));
+  else if (statuses.length > 1) conds.push(inArray(orders.orderStatus, statuses));
   if (opts.payment) conds.push(eq(orders.paymentStatus, opts.payment));
   if (opts.q) {
     const like = `%${opts.q.replace(/[\\%_]/g, "\\$&")}%`;

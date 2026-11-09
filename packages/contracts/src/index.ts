@@ -353,9 +353,9 @@ export function roundHalfUpDiv(numerator: number, denominator: number): number {
 
 /** ar-SA defaults to the Hijri calendar and Arabic-Indic digits; we show Gregorian dates with Latin digits. */
 const DATE_LOCALE = "ar-SA-u-ca-gregory-nu-latn";
-export function formatDate(d: Date | string, withTime = false): string {
+export function formatDate(d: Date | string, withTime = false, locale: "ar" | "en" = "ar"): string {
   const date = typeof d === "string" ? new Date(d) : d;
-  return new Intl.DateTimeFormat(DATE_LOCALE, {
+  return new Intl.DateTimeFormat(locale === "en" ? "en-GB" : DATE_LOCALE, {
     year: "numeric",
     month: "short",
     day: "numeric",

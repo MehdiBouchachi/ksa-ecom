@@ -1,0 +1,14 @@
+{
+	admin off
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+	# Cron endpoints are only for the internal scheduler sidecar.
+	@cron path /api/v1/cron/*
+	respond @cron 404
+	header -Server
+	reverse_proxy app:3000 {
+		header_up X-Forwarded-Proto {scheme}
+	}
+}

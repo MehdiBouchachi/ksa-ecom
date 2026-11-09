@@ -1,0 +1,16 @@
+**/node_modules
+**/.next
+**/ops
+**/.env
+**/.env.*
+!.env.example
+.git
+.github
+docs
+*.md
+**/coverage
+**/playwright-report
+**/test-results
+**/.pg-test-data*
+**/*.tsbuildinfo
+apps/web/tests

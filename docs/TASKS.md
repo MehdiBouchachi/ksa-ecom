@@ -11,5 +11,7 @@ For each task read only CLAUDE.md, docs/STATE.md and referenced specs/affected c
 | T06 Admin/Manager | ADMIN, INVENTORY, CONTRACTS | dashboard, product/taxonomy/orders/stock, admin-only user list, role isolation; ACC-11/12 |
 | T07 Aramex/email | INTEGRATIONS, ADMIN, CONTRACTS | AWB tracking, outbox/retries, signed cron; ACC-13/17 |
 | T08 Release | QUALITY, ARCHITECTURE, ACCEPTANCE | security, SEO, performance, legal signoff, external PostgreSQL connectivity, Hostinger deploy + rollback/backup restore; ACC-15/16/18/19/20 |
+| T09 Docker | RUNBOOK §1b | one-command compose, generated secrets, VPS deploy pipeline (done) |
+| T10 Admin UI/UX + AR/EN | STATE (T10a) | shell + dashboard done; next: orders → products/variants/pricing/inventory → taxonomy/settings/team pages in both languages, same motion/skeleton patterns |
 
 Update `docs/STATE.md` after each task: completed work, file paths, tests, blockers and next step. Avoid rewriting working code.

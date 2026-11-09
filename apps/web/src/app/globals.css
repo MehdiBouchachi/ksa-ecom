@@ -51,6 +51,29 @@ body {
 .prose-ar h2 { font-size: 1.25rem; font-weight: 700; margin-block: 1.25rem 0.5rem; }
 .prose-ar ul { list-style: disc; padding-inline-start: 1.5rem; }
 
+/* ---------- Admin theme (scoped: the storefront keeps its own tokens) ---------- */
+.admin-theme {
+  --color-background: #f4f6f8;
+  --color-foreground: #101828;
+  --color-card: #ffffff;
+  --color-muted: #f2f4f7;
+  --color-muted-foreground: #5d6b7e;
+  --color-border: #e4e7ec;
+  --color-input: #d0d5dd;
+  --color-primary: #0f766e;
+  --color-accent: #e6f6f3;
+  --color-ring: #0f766e;
+}
+.admin-sidebar {
+  background: linear-gradient(180deg, #0b2b29 0%, #082120 100%);
+  color: #fff;
+}
+.scroll-thin { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+.scroll-thin:hover { scrollbar-color: rgb(255 255 255 / 0.18) transparent; }
+.scroll-thin::-webkit-scrollbar { width: 6px; }
+.scroll-thin::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
+.scroll-thin:hover::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.18); }
+
 /* ---------- Motion (admin) — transform/opacity only, ≤ 300ms ---------- */
 :root {
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -74,13 +97,13 @@ body {
 .stagger > * { animation: page-in 320ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 40ms); }
 .skeleton {
   border-radius: 0.375rem;
-  background: linear-gradient(90deg, var(--color-muted) 25%, #ecebe9 50%, var(--color-muted) 75%);
+  background: linear-gradient(90deg, var(--color-muted) 25%, #e7eaee 50%, var(--color-muted) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.4s linear infinite;
 }
 .nav-progress {
   position: fixed; inset-inline: 0; top: 0; height: 2px; z-index: 60;
-  background: var(--color-primary); transform-origin: left;
+  background: linear-gradient(90deg, #2dd4bf, #0f766e); transform-origin: left;
   animation: progress 2.5s var(--ease-out) forwards;
 }
 [dir="rtl"] .nav-progress { transform-origin: right; }

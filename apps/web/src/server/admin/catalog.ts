@@ -61,7 +61,8 @@ export async function listProductsAdmin() {
       name: products.name,
       active: products.active,
       featured: products.featured,
-      variants: sql<number>`(select count(*)::int from product_variants v where v.product_id = ${products.id})`,
+      // Qualified explicitly: drizzle renders ${products.id} unqualified inside a select subquery (→ v.id).
+      variants: sql<number>`(select count(*)::int from product_variants v where v.product_id = "products"."id")`,
       updatedAt: products.updatedAt,
     })
     .from(products)

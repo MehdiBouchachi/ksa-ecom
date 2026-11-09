@@ -66,7 +66,10 @@ export function AdminShell({
 }) {
   const dir = locale === "ar" ? "rtl" : "ltr";
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  // The drawer remembers the path it was opened on, so it closes by itself on navigation.
+  const [openOn, setOpenOn] = useState<string | null>(null);
+  const open = openOn === pathname;
+  const setOpen = (v: boolean) => setOpenOn(v ? pathname : null);
   const drawerRef = useRef<HTMLDivElement>(null);
 
   // Keep <html> in sync so native UI (scrollbars, selects, autofill) follows the admin language.
@@ -81,13 +84,10 @@ export function AdminShell({
     };
   }, [locale, dir]);
 
-  // Close the drawer on navigation.
-  useEffect(() => setOpen(false), [pathname]);
-
   // Drawer: Escape closes, body scroll lock, focus moves into the drawer.
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpenOn(null);
     document.addEventListener("keydown", onKey);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -101,20 +101,20 @@ export function AdminShell({
   const sidebar = (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center justify-between gap-2 px-5">
-        <Link href="/admin" className="flex items-center gap-2 font-bold text-foreground">
-          <span className="grid size-8 place-items-center rounded-lg bg-primary text-sm text-white" aria-hidden>
+        <Link href="/admin" className="flex items-center gap-2.5 font-bold text-white">
+          <span className="grid size-8 place-items-center rounded-lg bg-linear-to-br from-teal-300 to-emerald-500 text-sm text-teal-950 shadow-sm" aria-hidden>
             <LayoutDashboard className="size-4" />
           </span>
           {s.brand}
         </Link>
-        <button type="button" onClick={() => setOpen(false)} className="grid size-9 place-items-center rounded-md text-muted-foreground hover:bg-muted md:hidden" aria-label={s.closeMenu}>
+        <button type="button" onClick={() => setOpen(false)} className="grid size-9 place-items-center rounded-md text-white/70 hover:bg-white/10 hover:text-white md:hidden" aria-label={s.closeMenu}>
           <X className="size-5" />
         </button>
       </div>
-      <nav aria-label={s.brand} className="flex-1 overflow-y-auto px-3 pb-4">
+      <nav aria-label={s.brand} className="scroll-thin flex-1 overflow-y-auto px-3 pb-4">
         {groups.map((g) => (
-          <div key={g.label} className="mt-4 first:mt-1">
-            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">{g.label}</p>
+          <div key={g.label} className="mt-3 first:mt-0">
+            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-white/40">{g.label}</p>
             <ul className="space-y-0.5">
               {g.items.map((it) => {
                 const active = it.href === "/admin" ? pathname === "/admin" : pathname === it.href || pathname.startsWith(it.href + "/");
@@ -124,11 +124,11 @@ export function AdminShell({
                       href={it.href}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "group relative flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm transition-colors duration-150",
-                        active ? "bg-accent font-semibold text-primary" : "text-foreground/80 hover:bg-muted hover:text-foreground",
+                        "group relative flex min-h-9 items-center gap-3 rounded-lg px-3 text-sm transition-colors duration-150",
+                        active ? "bg-white/10 font-semibold text-white" : "text-white/65 hover:bg-white/5 hover:text-white",
                       )}
                     >
-                      {active && <span aria-hidden className="absolute inset-y-2 start-0 w-0.5 rounded-full bg-primary" />}
+                      {active && <span aria-hidden className="absolute inset-y-2 start-0 w-[3px] rounded-full bg-teal-300" />}
                       <NavItemBody icon={ICONS[it.key]} label={it.label} />
                     </Link>
                   </li>
@@ -138,17 +138,17 @@ export function AdminShell({
           </div>
         ))}
       </nav>
-      <div className="border-t border-border p-3">
+      <div className="border-t border-white/10 p-3">
         <div className="flex items-center gap-3 rounded-lg px-2 py-2">
-          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-bold text-primary" aria-hidden>
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-teal-300/15 text-sm font-bold text-teal-200" aria-hidden>
             {initials(user.name)}
           </span>
           <div className="min-w-0 flex-1 leading-tight">
-            <p className="truncate text-sm font-semibold">{user.name}</p>
-            <p className="truncate text-xs text-muted-foreground">{user.role}</p>
+            <p className="truncate text-sm font-semibold text-white">{user.name}</p>
+            <p className="truncate text-xs text-white/50">{user.role}</p>
           </div>
           <form action={logoutAction}>
-            <button className="grid size-9 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-red-50 hover:text-destructive" aria-label={s.signOut} title={s.signOut}>
+            <button className="grid size-9 place-items-center rounded-md text-white/60 transition-colors hover:bg-red-500/15 hover:text-red-300" aria-label={s.signOut} title={s.signOut}>
               <LogOut className="size-4 rtl:-scale-x-100" />
             </button>
           </form>
@@ -158,9 +158,9 @@ export function AdminShell({
   );
 
   return (
-    <div dir={dir} lang={locale} className="min-h-dvh bg-background md:grid md:grid-cols-[256px_minmax(0,1fr)]">
+    <div dir={dir} lang={locale} className="admin-theme min-h-dvh bg-background text-foreground md:grid md:grid-cols-[248px_minmax(0,1fr)]">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-dvh border-e border-border bg-card md:block">{sidebar}</aside>
+      <aside className="admin-sidebar sticky top-0 hidden h-dvh md:block">{sidebar}</aside>
 
       {/* Mobile drawer */}
       <div
@@ -175,7 +175,7 @@ export function AdminShell({
         aria-label={s.brand}
         inert={!open}
         className={cn(
-          "fixed inset-y-0 start-0 z-50 w-[min(18rem,85vw)] bg-card shadow-xl transition-transform duration-200 ease-[var(--ease-out)] md:hidden",
+          "admin-sidebar fixed inset-y-0 start-0 z-50 w-[min(18rem,85vw)] shadow-2xl transition-transform duration-200 ease-(--ease-out) md:hidden",
           open ? "translate-x-0" : "ltr:-translate-x-full rtl:translate-x-full",
         )}
       >
@@ -183,7 +183,7 @@ export function AdminShell({
       </div>
 
       <div className="flex min-w-0 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-border bg-background/85 px-4 backdrop-blur md:px-8">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-border bg-card px-4 md:px-8">
           <button type="button" onClick={() => setOpen(true)} className="grid size-10 place-items-center rounded-md hover:bg-muted md:hidden" aria-label={s.openMenu} aria-expanded={open}>
             <Menu className="size-5" />
           </button>

@@ -1,5 +1,5 @@
 # Durable project state — Claude updates after every task
-Current task: T08 Release — **blocked on merchant/provider inputs** (see Blockers)
+Current task: T10 Admin UI/UX + i18n — next: translate remaining admin pages (orders, products, inventory…). Release T08 — **blocked on merchant/provider inputs** (see Blockers)
 Completed: T01–T07 implemented and tested; T08 engineering parts done (security headers, SEO, a11y, runbook, CI, E2E)
 Repository: pnpm monorepo, single Next.js 16 app `apps/web`, `packages/contracts`
 **Confirmed architecture:** NO Supabase; PostgreSQL via Drizzle ORM 0.45 + `pg`, Auth.js v5 (Credentials, JWT, DB re-check per request), server RBAC; one Next.js full-stack deployment.
@@ -14,6 +14,7 @@ Repository: pnpm monorepo, single Next.js 16 app `apps/web`, `packages/contracts
 - T07: Aramex adapter boundary + sandbox mock, single-AWB guarantee, tracking sync, Arabic email outbox with retries, signed cron endpoints + `scripts/cron.sh`.
 
 - T09 (2026-11-09): Docker. `Dockerfile` (standalone Next, ops scripts bundled with esbuild), `docker-compose.yml` (zero-config: generated secrets volume, internal DB network, cron sidecar, Mailpit), `docker-compose.prod.yml` (Caddy HTTPS, no mocks/demo), `scripts/deploy.sh`, `scripts/backup.sh`, `/api/health`, first-boot `bootstrap-admin`, CI `docker` job, gated `deploy.yml` (VPS over SSH). Verified locally: build, boot, health, admin login, SMTP→Mailpit, cron signed calls, unsigned cron 403, DB not exposed, restart idempotent.
+- T10a (2026-11-09): Admin UI/UX + AR/EN (dashboard first). Cookie locale (`locale`, `src/i18n/locale.ts`, `setLocaleAction`), admin dictionary `src/i18n/admin.ts` (en mirrors ar, type-checked), new `AdminShell` (grouped icon sidebar, active state, pending-nav progress bar via `useLinkStatus`, mobile drawer, language toggle, sets html lang/dir), `template.tsx` enter transition, `loading.tsx` skeletons, motion tokens in globals.css (reduced-motion respected). Dashboard: range 7/30/90, KPI deltas vs previous period, daily revenue SVG chart (hover/keyboard tooltip, sr-only table, RTL-mirrored axis), order pipeline, recent orders, stock alerts, quick actions. `getDashboard` adds prev-period + Riyadh-day series (days clamped 1–365). Orders list accepts comma-separated statuses. Dep: lucide-react 1.61.0. Storefront stays Arabic (root layout untouched to keep pages static).
 
 ## Tests (last run)
 `pnpm test`: 54/54 passed (13 unit, 41 integration on real PostgreSQL 18 via embedded-postgres). `pnpm build`: OK. E2E smoke (production build + Chromium): PASSED. `pnpm lint` and `pnpm typecheck`: clean.

@@ -5,8 +5,9 @@ import { getSetting } from "../lib/settings";
 
 export const DASHBOARD_RANGES = [7, 30, 90] as const;
 
-/** Deliberately basic metrics (no BI/forecasting). `days` must be one of DASHBOARD_RANGES. */
-export async function getDashboard(days: (typeof DASHBOARD_RANGES)[number] = 30) {
+/** Deliberately basic metrics (no BI/forecasting). `days` is clamped to an integer in [1, 365]. */
+export async function getDashboard(requestedDays = 30) {
+  const days = Math.min(365, Math.max(1, Math.trunc(requestedDays) || 30));
   const db = getDb();
   const since = new Date(Date.now() - days * 86_400_000);
   const prevSince = new Date(Date.now() - 2 * days * 86_400_000);

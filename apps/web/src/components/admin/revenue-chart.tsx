@@ -57,7 +57,7 @@ export function RevenueChart({
   };
   const yAt = (v: number) => PAD.top + plotH - (max ? (v / max) * plotH : 0);
 
-  const line = values.map((v, i) => `${i ? "L" : "M"}${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join("");
+  const line = monotonePath(values.map((v, i) => [xAt(i), yAt(v)] as [number, number]));
   const area = n ? `${line}L${xAt(n - 1).toFixed(1)},${yAt(0)}L${xAt(0).toFixed(1)},${yAt(0)}Z` : "";
   const labelIdx = n <= 1 ? [0] : n <= 7 ? data.map((_, i) => i) : [0, Math.round((n - 1) / 3), Math.round((2 * (n - 1)) / 3), n - 1];
 
@@ -95,10 +95,10 @@ export function RevenueChart({
         onBlur={() => setHover(null)}
       >
         {w > 0 && (
-          <svg width={w} height={H} className="block overflow-visible" aria-hidden>
+          <svg width={w} height={H} direction="ltr" className="block overflow-visible" aria-hidden>
             <defs>
               <linearGradient id={`g${gid}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--color-primary)" stopOpacity="0.18" />
+                <stop offset="0%" stopColor="var(--color-primary)" stopOpacity="0.22" />
                 <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0" />
               </linearGradient>
             </defs>
@@ -118,7 +118,7 @@ export function RevenueChart({
             {!isEmpty && (
               <>
                 <path d={area} fill={`url(#g${gid})`} className="fade-in" />
-                <path d={line} fill="none" stroke="var(--color-primary)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" pathLength={1} className="chart-line" />
+                <path d={line} fill="none" stroke="var(--color-primary)" strokeWidth={2.25} strokeLinejoin="round" strokeLinecap="round" pathLength={1} className="chart-line" />
               </>
             )}
             {hover !== null && h && (
@@ -167,6 +167,27 @@ export function RevenueChart({
       </table>
     </div>
   );
+}
+
+/** Monotone cubic (Fritsch–Carlson) path: smooth, never overshoots below zero or above peaks. */
+function monotonePath(pts: [number, number][]) {
+  const n = pts.length;
+  if (!n) return "";
+  if (n < 3) return pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join("");
+  const dx: number[] = [], m: number[] = [], t: number[] = [];
+  for (let i = 0; i < n - 1; i++) {
+    dx[i] = pts[i + 1]![0] - pts[i]![0];
+    m[i] = dx[i] ? (pts[i + 1]![1] - pts[i]![1]) / dx[i]! : 0;
+  }
+  t[0] = m[0]!;
+  t[n - 1] = m[n - 2]!;
+  for (let i = 1; i < n - 1; i++) t[i] = m[i - 1]! * m[i]! <= 0 ? 0 : (3 * (dx[i - 1]! + dx[i]!)) / ((2 * dx[i]! + dx[i - 1]!) / m[i - 1]! + (dx[i]! + 2 * dx[i - 1]!) / m[i]!);
+  let d = `M${pts[0]![0].toFixed(1)},${pts[0]![1].toFixed(1)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const [x0, y0] = pts[i]!, [x1, y1] = pts[i + 1]!, h = dx[i]! / 3;
+    d += `C${(x0 + h).toFixed(1)},${(y0 + h * t[i]!).toFixed(1)} ${(x1 - h).toFixed(1)},${(y1 - h * t[i + 1]!).toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}`;
+  }
+  return d;
 }
 
 /** Rounds the axis max up to 1/2/2.5/5 × 10^k so gridlines land on readable values. */

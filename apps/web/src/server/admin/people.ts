@@ -29,7 +29,7 @@ export async function listCustomers(actor: CurrentUser, opts: { q?: string; page
         phone: users.phone,
         status: users.status,
         createdAt: users.createdAt,
-        orders: sql<number>`(select count(*)::int from orders o where o.user_id = ${users.id})`,
+        orders: sql<number>`(select count(*)::int from orders o where o.user_id = "users"."id")`,
       })
       .from(users)
       .where(where)

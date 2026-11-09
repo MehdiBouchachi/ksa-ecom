@@ -1,4 +1,8 @@
-import { TaxonomyAdmin } from "@/components/admin/taxonomy-admin";
+import { TaxonomyAdmin, taxonomyTitle } from "@/components/admin/taxonomy-admin";
+
+export async function generateMetadata() {
+  return { title: await taxonomyTitle("collections") };
+}
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; edit?: string }> }) {
   return <TaxonomyAdmin kind="collections" sp={await searchParams} />;

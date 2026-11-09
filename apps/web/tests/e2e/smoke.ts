@@ -178,14 +178,14 @@ async function main() {
     assert((await m.getByRole("link", { name: "العملاء" }).count()) === 0, "customers link hidden for manager");
     for (const p of ["/admin/customers", "/admin/team"]) {
       await m.goto(appUrl + p);
-      assert(await m.getByRole("heading", { name: "غير مصرح أو حدث خطأ" }).isVisible(), `manager blocked from ${p} by URL`);
+      assert(await m.getByRole("heading", { name: "غير مصرح" }).isVisible(), `manager blocked from ${p} by URL`);
       const api = await m.request.get(appUrl + "/api/v1" + p);
       assert(api.status() === 403, `manager gets 403 from /api/v1${p}`);
     }
     await m.goto(appUrl + "/admin/orders");
     await m.locator("table a").first().click();
     await m.waitForURL(/\/admin\/orders\/[0-9a-f-]{36}/);
-    assert(await m.getByRole("heading", { name: "بيانات التوصيل (لهذا الطلب فقط)" }).isVisible(), "manager sees delivery details inside the order");
+    assert(await m.getByRole("heading", { name: "بيانات التوصيل" }).isVisible(), "manager sees delivery details inside the order");
     await m.getByRole("button", { name: "إنشاء شحنة أرامكس" }).click();
     await m.waitForURL(/ok=/);
     assert(await m.getByRole("status").filter({ hasText: "تم إنشاء الشحنة" }).isVisible(), "manager creates the Aramex shipment (sandbox)");

@@ -48,18 +48,18 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const needsReview = s.REQUIRES_RECONCILIATION ?? 0;
   const Chevron = locale === "ar" ? ChevronLeft : ChevronRight;
 
-  const kpis: { label: string; value: string; icon: LucideIcon; cur?: number; prev?: number; href?: string }[] = [
-    { label: D.revenue, value: sar(d.revenueHalalas), icon: Banknote, cur: d.revenueHalalas, prev: d.prevRevenueHalalas },
-    { label: D.paidOrders, value: String(d.paidOrders), icon: Receipt, cur: d.paidOrders, prev: d.prevPaidOrders },
-    { label: D.aov, value: sar(aov), icon: Wallet, cur: aov, prev: prevAov },
-    { label: D.awaitingPayment, value: String(s.PENDING ?? 0), icon: Clock, href: "/admin/orders?status=PENDING" },
+  const kpis: { label: string; value: string; icon: LucideIcon; tint: string; cur?: number; prev?: number; href?: string }[] = [
+    { label: D.revenue, value: sar(d.revenueHalalas), icon: Banknote, tint: "bg-emerald-50 text-emerald-700 ring-emerald-100", cur: d.revenueHalalas, prev: d.prevRevenueHalalas },
+    { label: D.paidOrders, value: String(d.paidOrders), icon: Receipt, tint: "bg-sky-50 text-sky-700 ring-sky-100", cur: d.paidOrders, prev: d.prevPaidOrders },
+    { label: D.aov, value: sar(aov), icon: Wallet, tint: "bg-violet-50 text-violet-700 ring-violet-100", cur: aov, prev: prevAov },
+    { label: D.awaitingPayment, value: String(s.PENDING ?? 0), icon: Clock, tint: "bg-amber-50 text-amber-700 ring-amber-100", href: "/admin/orders?status=PENDING" },
   ];
 
-  const stages: { label: string; n: number; icon: LucideIcon; href: string; tone: string }[] = [
-    { label: D.stages.pending, n: s.PENDING ?? 0, icon: Clock, href: "/admin/orders?status=PENDING", tone: "bg-amber-50 text-amber-700" },
-    { label: D.stages.processing, n: processing, icon: PackageCheck, href: "/admin/orders?status=CONFIRMED,PROCESSING,READY_FOR_SHIPPING", tone: "bg-sky-50 text-sky-700" },
-    { label: D.stages.shipped, n: s.SHIPPED ?? 0, icon: Truck, href: "/admin/orders?status=SHIPPED", tone: "bg-teal-50 text-teal-700" },
-    { label: D.stages.delivered, n: s.DELIVERED ?? 0, icon: CheckCircle2, href: "/admin/orders?status=DELIVERED", tone: "bg-green-50 text-green-700" },
+  const stages: { label: string; n: number; icon: LucideIcon; href: string; tone: string; bar: string }[] = [
+    { label: D.stages.pending, n: s.PENDING ?? 0, icon: Clock, href: "/admin/orders?status=PENDING", tone: "bg-amber-50 text-amber-700", bar: "bg-amber-400" },
+    { label: D.stages.processing, n: processing, icon: PackageCheck, href: "/admin/orders?status=CONFIRMED,PROCESSING,READY_FOR_SHIPPING", tone: "bg-sky-50 text-sky-700", bar: "bg-sky-500" },
+    { label: D.stages.shipped, n: s.SHIPPED ?? 0, icon: Truck, href: "/admin/orders?status=SHIPPED", tone: "bg-violet-50 text-violet-700", bar: "bg-violet-500" },
+    { label: D.stages.delivered, n: s.DELIVERED ?? 0, icon: CheckCircle2, href: "/admin/orders?status=DELIVERED", tone: "bg-emerald-50 text-emerald-700", bar: "bg-emerald-500" },
   ];
   const stageMax = Math.max(1, ...stages.map((x) => x.n));
 
@@ -75,10 +75,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{D.welcome(user.fullName.split(" ")[0] ?? user.fullName)}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{D.subtitle}</p>
+          <p className="text-sm text-muted-foreground">{D.welcome(user.fullName.split(" ")[0] ?? user.fullName)}</p>
+          <h1 className="mt-0.5 text-2xl font-bold tracking-tight md:text-3xl">{D.title}</h1>
         </div>
-        <nav aria-label={D.rangeLabel} className="inline-flex rounded-lg border border-border bg-card p-1 shadow-sm">
+        <nav aria-label={D.rangeLabel} className="inline-flex rounded-lg border border-border bg-card p-1 shadow-[0_1px_2px_rgb(16_24_40/0.04)]">
           {DASHBOARD_RANGES.map((r) => (
             <Link
               key={r}
@@ -87,7 +87,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               aria-current={r === range ? "true" : undefined}
               className={cn(
                 "min-h-8 rounded-md px-3 text-sm leading-8 transition-colors duration-150",
-                r === range ? "bg-primary font-semibold text-white shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                r === range ? "bg-primary font-semibold text-white shadow-[0_1px_2px_rgb(16_24_40/0.04)]" : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
               {D.range[r]}
@@ -107,21 +107,21 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       )}
 
       {/* KPIs */}
-      <div className="stagger grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="stagger grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {kpis.map((k, i) => {
           const body = (
             <>
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium text-muted-foreground">{k.label}</p>
-                <span className="grid size-9 place-items-center rounded-lg bg-accent text-primary" aria-hidden>
-                  <k.icon className="size-[18px]" />
+                <p className="text-xs font-medium text-muted-foreground sm:text-sm">{k.label}</p>
+                <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg ring-1 ring-inset sm:size-10 sm:rounded-xl", k.tint)} aria-hidden>
+                  <k.icon className="size-4 sm:size-5" />
                 </span>
               </div>
-              <p className="tabular mt-2 text-2xl font-bold tracking-tight">{k.value}</p>
+              <p className="tabular mt-2 truncate text-lg font-bold tracking-tight sm:text-2xl">{k.value}</p>
               {k.cur !== undefined ? <Delta cur={k.cur} prev={k.prev ?? 0} vs={D.vsPrev} none={D.noPrev} /> : <p className="mt-2 text-xs text-muted-foreground">&nbsp;</p>}
             </>
           );
-          const cls = "block rounded-xl border border-border bg-card p-5 shadow-sm";
+          const cls = "block min-w-0 rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-[0_1px_2px_rgb(16_24_40/0.04)]";
           return k.href ? (
             <Link key={k.label} href={k.href} style={stg(i)} className={cn(cls, "transition-[box-shadow,border-color] duration-150 hover:border-primary/30 hover:shadow-md")}>
               {body}
@@ -135,8 +135,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       </div>
 
       {/* Chart + pipeline */}
-      <div className="stagger grid gap-4 lg:grid-cols-3">
-        <section style={stg(4)} className="rounded-xl border border-border bg-card p-5 shadow-sm lg:col-span-2" aria-labelledby="rev-h">
+      <div className="stagger grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <section style={stg(4)} className="rounded-2xl border border-border bg-card p-5 shadow-[0_1px_2px_rgb(16_24_40/0.04)] lg:col-span-2" aria-labelledby="rev-h">
           <div className="mb-4 flex items-baseline justify-between gap-2">
             <h2 id="rev-h" className="font-semibold">{D.revenueOverTime}</h2>
             <p className="tabular text-sm text-muted-foreground">{sar(d.revenueHalalas)}</p>
@@ -148,7 +148,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           />
         </section>
 
-        <section style={stg(5)} className="rounded-xl border border-border bg-card p-5 shadow-sm" aria-labelledby="pipe-h">
+        <section style={stg(5)} className="rounded-2xl border border-border bg-card p-5 shadow-[0_1px_2px_rgb(16_24_40/0.04)]" aria-labelledby="pipe-h">
           <h2 id="pipe-h" className="mb-4 font-semibold">{D.pipeline}</h2>
           <ul className="space-y-1">
             {stages.map((st) => (
@@ -163,7 +163,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                       <span className="tabular font-semibold">{st.n}</span>
                     </span>
                     <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-muted">
-                      <span className="block h-full rounded-full bg-primary/70 transition-[width] duration-500" style={{ width: `${(st.n / stageMax) * 100}%` }} />
+                      <span className={cn("block h-full rounded-full transition-[width] duration-500", st.bar)} style={{ width: `${(st.n / stageMax) * 100}%` }} />
                     </span>
                   </span>
                   <Chevron className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
@@ -175,8 +175,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       </div>
 
       {/* Recent orders + stock + quick actions */}
-      <div className="stagger grid gap-4 lg:grid-cols-3">
-        <section style={stg(6)} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm lg:col-span-2" aria-labelledby="recent-h">
+      <div className="stagger grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <section style={stg(6)} className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_1px_2px_rgb(16_24_40/0.04)] lg:col-span-2" aria-labelledby="recent-h">
           <div className="flex items-center justify-between gap-2 border-b border-border px-5 py-4">
             <h2 id="recent-h" className="font-semibold">{D.recentOrders}</h2>
             <Link href="/admin/orders" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
@@ -185,17 +185,20 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           </div>
           {d.recent.length ? (
             <ul className="divide-y divide-border">
-              {d.recent.map((o) => (
-                <li key={o.id}>
-                  <Link href={`/admin/orders/${o.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3 transition-colors hover:bg-muted/60">
-                    <span className="min-w-28">
-                      <span className="block font-mono text-sm font-semibold text-primary" dir="ltr">{o.reference}</span>
-                      <span className="block text-xs text-muted-foreground">{formatDate(o.createdAt, true, locale)}</span>
+              {d.recent.map((o, i) => (
+                <li key={o.id} className={i >= 5 ? "max-sm:hidden" : undefined}>
+                  <Link href={`/admin/orders/${o.id}`} className="flex flex-col gap-2 px-5 py-3 transition-colors hover:bg-muted/60 sm:flex-row sm:items-center sm:gap-4">
+                    <span className="flex items-start justify-between gap-3 sm:block sm:min-w-32">
+                      <span>
+                        <span className="block font-mono text-sm font-semibold text-primary" dir="ltr">{o.reference}</span>
+                        <span className="block text-xs text-muted-foreground">{formatDate(o.createdAt, true, locale)}</span>
+                      </span>
+                      <span className="tabular text-sm font-semibold sm:hidden">{sar(o.totalHalalas)}</span>
                     </span>
                     <span className="flex-1">
-                      <StatusBadges order={o.orderStatus} payment={o.paymentStatus} shipping={o.shippingStatus} locale={locale} />
+                      <StatusBadges order={o.orderStatus} payment={o.paymentStatus} shipping={o.shippingStatus} locale={locale} compact />
                     </span>
-                    <span className="tabular text-sm font-semibold">{sar(o.totalHalalas)}</span>
+                    <span className="tabular hidden text-sm font-semibold sm:block">{sar(o.totalHalalas)}</span>
                   </Link>
                 </li>
               ))}
@@ -211,8 +214,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           )}
         </section>
 
-        <div className="space-y-4" style={stg(7)}>
-          <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm" aria-labelledby="stock-h">
+        <div className="min-w-0 space-y-4" style={stg(7)}>
+          <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-[0_1px_2px_rgb(16_24_40/0.04)]" aria-labelledby="stock-h">
             <div className="flex items-center justify-between gap-2 border-b border-border px-5 py-4">
               <h2 id="stock-h" className="font-semibold">{D.lowStock}</h2>
               {d.lowStock.length > 0 && <span className="tabular rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">{d.lowStock.length}</span>}
@@ -245,7 +248,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             )}
           </section>
 
-          <section className="rounded-xl border border-border bg-card p-5 shadow-sm" aria-labelledby="quick-h">
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-[0_1px_2px_rgb(16_24_40/0.04)]" aria-labelledby="quick-h">
             <h2 id="quick-h" className="mb-3 font-semibold">{D.quick}</h2>
             <div className="grid grid-cols-2 gap-2">
               {quick.map((q) => (
@@ -268,13 +271,13 @@ function Delta({ cur, prev, vs, none }: { cur: number; prev: number; vs: string;
   const up = pct >= 0;
   const Icon = up ? ArrowUpRight : ArrowDownRight;
   return (
-    <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+    <p className="mt-2 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
       <span className={cn("tabular inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-semibold", up ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700")}>
         <Icon className="size-3.5" aria-hidden />
         {up ? "+" : "−"}
         {Math.abs(pct).toFixed(Math.abs(pct) < 10 ? 1 : 0)}%
       </span>
-      {vs}
+      <span className="hidden truncate sm:inline">{vs}</span>
     </p>
   );
 }

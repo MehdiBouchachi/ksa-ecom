@@ -7,7 +7,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const sp = await searchParams;
   const faceted = Object.values(sp).some((v) => v !== undefined && v !== "");
   return {
-    title: "جميع المنتجات",
+    title: "التشكيلات",
     description: "تسوّق جميع الألوان والمقاسات المتوفرة مع خيارات الشراء بالتجزئة والجملة.",
     alternates: { canonical: "/products" },
     // Faceted/filtered/paginated variants are not indexed (duplicate content); links still followed.
@@ -16,5 +16,5 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 }
 
 export default async function ProductsPage({ searchParams }: Props) {
-  return <CatalogPage title="جميع المنتجات" basePath="/products" searchParams={await searchParams} crumbs={[{ name: "المنتجات", href: "/products" }]} />;
+  return <CatalogPage title="التشكيلات" description="كل الألوان والمقاسات المتوفرة. اختر لونًا لعرض المقاسات والسعر والتوفر." basePath="/products" searchParams={await searchParams} crumbs={[{ name: "التشكيلات", href: "/products" }]} />;
 }

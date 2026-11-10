@@ -7,7 +7,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Header />
-      <main id="main" className="mx-auto w-full max-w-6xl px-4 py-6">
+      <main id="main" className="container-store min-h-[60vh] py-6 md:py-10">
         {children}
       </main>
       <Footer />

@@ -56,7 +56,7 @@ export default async function Customer({ params, searchParams }: { params: Promi
         <Back className="size-4" aria-hidden /> {t.back}
       </Link>
       <Flash sp={await searchParams} />
-      <section className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-[0_1px_2px_rgb(16_24_40/0.04)]">
+      <section className="mb-6 rounded-2xl border border-border bg-card p-5">
         <div className="flex flex-wrap items-start gap-4">
           <span className="grid size-14 shrink-0 place-items-center rounded-full bg-accent text-xl font-bold text-primary" aria-hidden>{c.fullName.trim().slice(0, 1).toUpperCase()}</span>
           <div className="min-w-0 flex-1">

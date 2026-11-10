@@ -217,7 +217,18 @@ export async function listShipments(limit = 100) {
 /** Paid orders awaiting a shipment. */
 export async function listShippableOrders(limit = 100) {
   return getDb()
-    .select({ id: orders.id, reference: orders.reference, orderStatus: orders.orderStatus, createdAt: orders.createdAt, city: sql<string>`${orders.addressSnapshot}->>'city'` })
+    .select({
+      id: orders.id,
+      reference: orders.reference,
+      orderStatus: orders.orderStatus,
+      createdAt: orders.createdAt,
+      paidAt: orders.paidAt,
+      city: sql<string>`${orders.addressSnapshot}->>'city'`,
+      customer: sql<string>`${orders.customerSnapshot}->>'name'`,
+      // A failed/pending earlier attempt (retry is safe: one shipment row per order, idempotent create).
+      shipmentState: shipments.createState,
+      shipmentError: shipments.lastError,
+    })
     .from(orders)
     .leftJoin(shipments, eq(shipments.orderId, orders.id))
     .where(and(eq(orders.paymentStatus, "PAID"), inArray(orders.orderStatus, ["CONFIRMED", "PROCESSING", "READY_FOR_SHIPPING"]), or(isNull(shipments.id), sql`${shipments.createState} <> 'DONE'`)))

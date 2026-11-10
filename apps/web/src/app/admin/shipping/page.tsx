@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { PackageCheck, RefreshCw, Settings2, Truck } from "lucide-react";
-import { formatDate, type ShipmentStatus } from "@saudi-ecom/contracts";
-import { btnCls, btnOutlineCls, Field, Flash, inputCls, PageTitle, Section, Table } from "@/components/admin/ui";
+import { PackageCheck, RefreshCw, Truck } from "lucide-react";
+import { formatDate, formatSAR, type ShipmentStatus } from "@saudi-ecom/contracts";
+import { SubmitButton } from "@/components/admin/overlay";
+import { AdminPageHeader, btnCls, btnOutlineCls, Callout, EmptyState, Field, Flash, FormSection, inputCls, Section, StatusBadge, TabNav, Table, type Tone } from "@/components/admin/ui";
 import { statusLabels } from "@/i18n/admin";
 import { getLocale } from "@/i18n/locale";
 import { cn } from "@/lib/utils";
@@ -13,41 +14,83 @@ import { createShipmentAction, refreshShipmentAction, saveOperationalSettingsAct
 const T = {
   ar: {
     title: "الشحن",
-    desc: "أرامكس — إنشاء البوالص وتتبع الشحنات.",
-    rates: "جدول الشحن",
-    ratesHint: "يحدده التاجر. إذا لم يُحدد سعر الشحن يتوقف إتمام الطلب برسالة واضحة (لا توجد أسعار مخترعة).",
-    flat: "سعر الشحن الثابت (ر.س)",
-    free: "شحن مجاني من (ر.س)",
-    optional: "اختياري",
-    low: "حد تنبيه المخزون",
-    save: "حفظ",
-    ready: "طلبات مدفوعة جاهزة للشحن",
-    readyCols: ["الطلب", "المدينة", "التاريخ", ""],
+    desc: "تجهيز الطلبات المدفوعة وإنشاء بوالص أرامكس وتتبعها.",
+    tabs: "أقسام الشحن",
+    queue: "بانتظار الشحن",
+    history: "الشحنات",
+    settings: "الإعدادات",
+    queueDesc: "طلبات مدفوعة ومؤكدة لم تُنشأ لها بوليصة بعد، الأقدم أولًا.",
+    queueCols: ["الطلب", "العميل", "المدينة", "تاريخ الدفع", "الحالة", ""],
     create: "إنشاء بوليصة",
+    retry: "إعادة المحاولة",
+    creating: "جارٍ الإنشاء…",
+    failed: "فشلت المحاولة السابقة",
+    pending: "محاولة سابقة لم تكتمل",
+    ready: "جاهز",
     noneReady: "لا توجد طلبات بانتظار الشحن",
-    shipments: "الشحنات",
-    cols: ["الطلب", "AWB", "الحالة", "آخر مزامنة", ""],
-    error: "خطأ",
-    refresh: "تحديث",
+    noneReadyBody: "تظهر هنا الطلبات بعد تأكيد الدفع.",
+    toOrders: "عرض الطلبات",
+    historyDesc: "آخر 100 شحنة. «تحديث» يجلب حالة التتبع من أرامكس.",
+    cols: ["الطلب", "رقم البوليصة (AWB)", "حالة الشحن", "آخر مزامنة", ""],
+    refresh: "تحديث التتبع",
+    refreshing: "جارٍ التحديث…",
+    noShipments: "لا توجد شحنات بعد",
+    error: "خطأ في الإنشاء",
+    noAwb: "بانتظار الرقم",
+    never: "لم تتم",
+    rates: "أسعار الشحن",
+    ratesDesc: "يحددها التاجر. إذا لم يُحدَّد سعر الشحن يتوقف إتمام الطلب برسالة واضحة — لا توجد أسعار افتراضية.",
+    flat: "سعر الشحن الثابت (ر.س)",
+    free: "شحن مجاني للطلبات من (ر.س)",
+    freeHint: "اختياري. اتركه فارغًا لعدم تقديم شحن مجاني.",
+    alerts: "تنبيه المخزون",
+    alertsDesc: "يُعلَّم الخيار «منخفض» عندما يصل المتاح إلى هذا الرقم أو أقل.",
+    low: "حد المخزون المنخفض",
+    save: "حفظ التغييرات",
+    saving: "جارٍ الحفظ…",
+    current: (flat: string, free: string | null) => `الحالي: ${flat}${free ? ` · مجاني من ${free}` : ""}`,
+    notSet: "سعر الشحن غير محدد — إتمام الطلب متوقف حتى يُحدَّد.",
+    integration: "أرامكس يعمل في وضع الاختبار حتى تُعتمد بيانات حساب التاجر. لا تظهر هنا أي نتائج مصطنعة.",
   },
   en: {
     title: "Shipping",
-    desc: "Aramex — create waybills and track shipments.",
-    rates: "Shipping rates",
-    ratesHint: "Set by the merchant. If no rate is set, checkout stops with a clear message (no invented prices).",
-    flat: "Flat shipping rate (SAR)",
-    free: "Free shipping from (SAR)",
-    optional: "Optional",
-    low: "Low-stock alert threshold",
-    save: "Save",
-    ready: "Paid orders ready to ship",
-    readyCols: ["Order", "City", "Date", ""],
+    desc: "Fulfil paid orders, create Aramex waybills and track them.",
+    tabs: "Shipping sections",
+    queue: "To ship",
+    history: "Shipments",
+    settings: "Settings",
+    queueDesc: "Paid, confirmed orders without a waybill yet, oldest first.",
+    queueCols: ["Order", "Customer", "City", "Paid", "State", ""],
     create: "Create waybill",
+    retry: "Retry",
+    creating: "Creating…",
+    failed: "Previous attempt failed",
+    pending: "Previous attempt incomplete",
+    ready: "Ready",
     noneReady: "No orders waiting to ship",
-    shipments: "Shipments",
-    cols: ["Order", "AWB", "Status", "Last sync", ""],
-    error: "Error",
-    refresh: "Refresh",
+    noneReadyBody: "Orders appear here once their payment is confirmed.",
+    toOrders: "View orders",
+    historyDesc: "Latest 100 shipments. “Refresh tracking” fetches the status from Aramex.",
+    cols: ["Order", "Waybill (AWB)", "Shipping status", "Last sync", ""],
+    refresh: "Refresh tracking",
+    refreshing: "Refreshing…",
+    noShipments: "No shipments yet",
+    error: "Creation error",
+    noAwb: "Awaiting number",
+    never: "Never",
+    rates: "Shipping rates",
+    ratesDesc: "Set by the merchant. If no rate is set, checkout stops with a clear message — there are no default prices.",
+    flat: "Flat shipping rate (SAR)",
+    free: "Free shipping for orders from (SAR)",
+    freeHint: "Optional. Leave empty to not offer free shipping.",
+    alerts: "Stock alert",
+    alertsDesc: "A variant is marked “low” when its available stock reaches this number or less.",
+    low: "Low-stock threshold",
+    save: "Save changes",
+    saving: "Saving…",
+    current: (flat: string, free: string | null) => `Current: ${flat}${free ? ` · free from ${free}` : ""}`,
+    notSet: "No shipping rate set — checkout is blocked until one is set.",
+    integration: "Aramex runs in sandbox mode until the merchant's account details are approved. Nothing shown here is simulated as real.",
   },
 };
 
@@ -55,74 +98,134 @@ export async function generateMetadata() {
   return { title: T[await getLocale()].title };
 }
 
-export default async function Shipping({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
+const shipTone = (s: string): Tone => (s === "DELIVERED" ? "success" : s === "FAILED" || s === "RETURNED" ? "danger" : s === "NOT_CREATED" ? "neutral" : "info");
+
+export default async function Shipping({ searchParams }: { searchParams: Promise<{ tab?: string; ok?: string; error?: string }> }) {
   await requireStaff();
   const locale = await getLocale();
   const t = T[locale];
   const L = statusLabels(locale);
+  const sp = await searchParams;
+  const tab = sp.tab === "history" || sp.tab === "settings" ? sp.tab : "queue";
   const [ready, shipments, commerce] = await Promise.all([listShippableOrders(), listShipments(), getSetting("commerce")]);
   const sar = (h: number | null) => (h === null ? "" : (h / 100).toFixed(2));
-  const shipTone = (s: string) => (s === "DELIVERED" ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : s === "FAILED" || s === "RETURNED" ? "bg-red-50 text-red-700 ring-red-200" : s === "NOT_CREATED" ? "bg-stone-50 text-stone-600 ring-stone-200" : "bg-sky-50 text-sky-800 ring-sky-200");
+  const href = (k: string) => (k === "queue" ? "/admin/shipping" : `/admin/shipping?tab=${k}`);
 
   return (
     <>
-      <PageTitle description={t.desc}>{t.title}</PageTitle>
-      <Flash sp={await searchParams} />
+      <AdminPageHeader title={t.title} description={t.desc} />
+      <Flash sp={sp} />
+      <TabNav
+        label={t.tabs}
+        items={[
+          { href: href("queue"), label: t.queue, active: tab === "queue", count: ready.length, tone: "warning" },
+          { href: href("history"), label: t.history, active: tab === "history", count: shipments.length },
+          { href: href("settings"), label: t.settings, active: tab === "settings" },
+        ]}
+      />
+      {commerce.shippingFlatHalalas === null && tab !== "settings" && (
+        <Callout tone="warning" className="mb-4">
+          {t.notSet} <Link href={href("settings")} className="font-medium underline">{t.settings}</Link>
+        </Callout>
+      )}
 
-      <Section className="mb-6" title={<span className="flex items-center gap-2"><Settings2 className="size-4 text-primary" aria-hidden /> {t.rates}</span>}>
-        <form action={saveOperationalSettingsAction} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label={t.flat}><input name="shippingFlat" inputMode="decimal" dir="ltr" placeholder="0.00" defaultValue={sar(commerce.shippingFlatHalalas)} className={inputCls} /></Field>
-          <Field label={t.free} hint={t.optional}><input name="freeThreshold" inputMode="decimal" dir="ltr" placeholder="0.00" defaultValue={sar(commerce.freeShippingThresholdHalalas)} className={inputCls} /></Field>
-          <Field label={t.low}><input name="lowStockThreshold" type="number" min={0} defaultValue={commerce.lowStockThreshold} className={inputCls} /></Field>
-          <div className="sm:pt-[1.625rem]"><button className={cn(btnCls, "w-full")}>{t.save}</button></div>
-        </form>
-        <p className="mt-3 text-xs text-muted-foreground">{t.ratesHint}</p>
-      </Section>
-
-      <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
-        <PackageCheck className="size-5 text-primary" aria-hidden /> {t.ready}
-        {ready.length > 0 && <span className="tabular rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">{ready.length}</span>}
-      </h2>
-      <Table head={t.readyCols} empty={!ready.length} emptyText={t.noneReady}>
-        {ready.map((o) => (
-          <tr key={o.id}>
-            <td><Link href={`/admin/orders/${o.id}`} className="font-mono font-semibold text-primary hover:underline" dir="ltr">{o.reference}</Link></td>
-            <td>{o.city}</td>
-            <td className="text-muted-foreground">{formatDate(o.createdAt, false, locale)}</td>
-            <td className="text-end">
-              <form action={createShipmentAction}>
-                <input type="hidden" name="orderId" value={o.id} />
-                <input type="hidden" name="back" value="/admin/shipping" />
-                <button className={cn(btnCls, "min-h-9")}><Truck className="size-4" aria-hidden /> {t.create}</button>
-              </form>
-            </td>
-          </tr>
+      {tab === "queue" &&
+        (ready.length === 0 ? (
+          <EmptyState icon={PackageCheck} title={t.noneReady} action={<Link href="/admin/orders" className={btnOutlineCls}>{t.toOrders}</Link>}>{t.noneReadyBody}</EmptyState>
+        ) : (
+          <>
+            <p className="mb-3 text-sm text-muted-foreground">{t.queueDesc}</p>
+            <Table head={t.queueCols} caption={t.queue}>
+              {ready.map((o) => {
+                const failed = o.shipmentState === "ERROR";
+                const retry = failed || o.shipmentState === "PENDING";
+                return (
+                  <tr key={o.id}>
+                    <td><Link href={`/admin/orders/${o.id}`} className="font-mono font-semibold text-primary hover:underline" dir="ltr">{o.reference}</Link></td>
+                    <td className="max-w-48 truncate">{o.customer}</td>
+                    <td>{o.city}</td>
+                    <td className="whitespace-nowrap text-muted-foreground">{formatDate(o.paidAt ?? o.createdAt, false, locale)}</td>
+                    <td>
+                      {failed ? <StatusBadge tone="danger">{t.failed}</StatusBadge> : retry ? <StatusBadge tone="warning">{t.pending}</StatusBadge> : <StatusBadge tone="primary">{t.ready}</StatusBadge>}
+                      {o.shipmentError && <span className="mt-1 block max-w-64 text-xs text-destructive">{o.shipmentError}</span>}
+                    </td>
+                    <td className="w-px text-end">
+                      <form action={createShipmentAction}>
+                        <input type="hidden" name="orderId" value={o.id} />
+                        <input type="hidden" name="back" value="/admin/shipping" />
+                        <SubmitButton className={cn(btnOutlineCls, "min-h-9", !retry && "text-primary")} pendingLabel={t.creating}>
+                          {retry ? <RefreshCw className="size-4" aria-hidden /> : <Truck className="size-4" aria-hidden />} {retry ? t.retry : t.create}
+                        </SubmitButton>
+                      </form>
+                    </td>
+                  </tr>
+                );
+              })}
+            </Table>
+          </>
         ))}
-      </Table>
 
-      <h2 className="mb-3 mt-8 flex items-center gap-2 text-lg font-semibold"><Truck className="size-5 text-primary" aria-hidden /> {t.shipments}</h2>
-      <Table head={t.cols} empty={!shipments.length}>
-        {shipments.map((s) => (
-          <tr key={s.id}>
-            <td><Link href={`/admin/orders/${s.orderId}`} className="font-mono font-semibold text-primary hover:underline" dir="ltr">{s.reference}</Link></td>
-            <td className="font-mono text-xs" dir="ltr">{s.awb ?? (s.createState === "ERROR" ? <span className="text-destructive">{t.error}</span> : "…")}</td>
-            <td>
-              <span className={cn("inline-flex rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset", shipTone(s.status))}>{L.shipping[s.status as ShipmentStatus] ?? s.status}</span>
-              {s.lastError ? <span className="mt-1 block text-xs text-destructive">{s.lastError}</span> : null}
-            </td>
-            <td className="text-xs text-muted-foreground">{s.lastSyncedAt ? formatDate(s.lastSyncedAt, true, locale) : "—"}</td>
-            <td className="text-end">
-              {s.awb && (
-                <form action={refreshShipmentAction}>
-                  <input type="hidden" name="shipmentId" value={s.id} />
-                  <input type="hidden" name="back" value="/admin/shipping" />
-                  <button className={cn(btnOutlineCls, "min-h-9")}><RefreshCw className="size-4" aria-hidden /> {t.refresh}</button>
-                </form>
-              )}
-            </td>
-          </tr>
+      {tab === "history" &&
+        (shipments.length === 0 ? (
+          <EmptyState icon={Truck} title={t.noShipments} />
+        ) : (
+          <>
+            <p className="mb-3 text-sm text-muted-foreground">{t.historyDesc}</p>
+            <Table head={t.cols} caption={t.history}>
+              {shipments.map((s) => (
+                <tr key={s.id}>
+                  <td><Link href={`/admin/orders/${s.orderId}`} className="font-mono font-semibold text-primary hover:underline" dir="ltr">{s.reference}</Link></td>
+                  <td className="font-mono text-xs" dir="ltr">{s.awb ?? <span className={s.createState === "ERROR" ? "text-destructive" : "text-muted-foreground"}>{s.createState === "ERROR" ? t.error : t.noAwb}</span>}</td>
+                  <td>
+                    <StatusBadge tone={shipTone(s.status)}>{L.shipping[s.status as ShipmentStatus] ?? s.status}</StatusBadge>
+                    {s.lastError ? <span className="mt-1 block max-w-64 text-xs text-destructive">{s.lastError}</span> : null}
+                  </td>
+                  <td className="whitespace-nowrap text-xs text-muted-foreground">{s.lastSyncedAt ? formatDate(s.lastSyncedAt, true, locale) : t.never}</td>
+                  <td className="w-px text-end">
+                    {s.awb && (
+                      <form action={refreshShipmentAction}>
+                        <input type="hidden" name="shipmentId" value={s.id} />
+                        <input type="hidden" name="back" value={href("history")} />
+                        <SubmitButton className={cn(btnOutlineCls, "min-h-9")} pendingLabel={t.refreshing}><RefreshCw className="size-4" aria-hidden /> {t.refresh}</SubmitButton>
+                      </form>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          </>
         ))}
-      </Table>
+
+      {tab === "settings" && (
+        <div className="max-w-3xl space-y-5">
+          <Section>
+            <form action={saveOperationalSettingsAction} className="space-y-6">
+              <input type="hidden" name="back" value={href("settings")} />
+              <FormSection
+                title={t.rates}
+                description={
+                  <>
+                    {t.ratesDesc}
+                    {commerce.shippingFlatHalalas !== null && (
+                      <span className="mt-1 block">{t.current(formatSAR(commerce.shippingFlatHalalas, locale), commerce.freeShippingThresholdHalalas !== null ? formatSAR(commerce.freeShippingThresholdHalalas, locale) : null)}</span>
+                    )}
+                  </>
+                }
+              >
+                <Field label={t.flat}><input name="shippingFlat" inputMode="decimal" pattern="\d+(\.\d{1,2})?" dir="ltr" placeholder="0.00" defaultValue={sar(commerce.shippingFlatHalalas)} className={inputCls} /></Field>
+                <Field label={t.free} hint={t.freeHint}><input name="freeThreshold" inputMode="decimal" pattern="\d+(\.\d{1,2})?" dir="ltr" placeholder="0.00" defaultValue={sar(commerce.freeShippingThresholdHalalas)} className={inputCls} /></Field>
+              </FormSection>
+              <FormSection title={t.alerts} description={t.alertsDesc}>
+                <Field label={t.low}><input name="lowStockThreshold" type="number" min={0} step={1} dir="ltr" defaultValue={commerce.lowStockThreshold} className={inputCls} /></Field>
+              </FormSection>
+              <div className="flex justify-end border-t border-border pt-4">
+                <SubmitButton className={btnCls} pendingLabel={t.saving}>{t.save}</SubmitButton>
+              </div>
+            </form>
+          </Section>
+          <Callout>{t.integration}</Callout>
+        </div>
+      )}
     </>
   );
 }

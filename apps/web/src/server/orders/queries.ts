@@ -77,7 +77,7 @@ export async function getOrderForUser(userId: string, orderId: string) {
 
 /* ---------------------------- Back office (staff) ----------------------------- */
 
-export async function listOrdersAdmin(opts: { status?: string; payment?: string; q?: string; page?: number; pageSize?: number }) {
+export async function listOrdersAdmin(opts: { status?: string; payment?: string; q?: string; sort?: "newest" | "oldest" | "total_desc" | "total_asc"; page?: number; pageSize?: number }) {
   const page = opts.page ?? 1;
   const pageSize = Math.min(opts.pageSize ?? 25, 100);
   const conds: SQL[] = [];
@@ -92,6 +92,10 @@ export async function listOrdersAdmin(opts: { status?: string; payment?: string;
     conds.push(or(ilike(orders.reference, like), sql`${orders.customerSnapshot}->>'name' ilike ${like}`)!);
   }
   const where = conds.length ? and(...conds) : undefined;
+  const order = opts.sort === "oldest" ? [asc(orders.createdAt), asc(orders.id)]
+    : opts.sort === "total_desc" ? [desc(orders.totalHalalas), desc(orders.createdAt)]
+    : opts.sort === "total_asc" ? [asc(orders.totalHalalas), desc(orders.createdAt)]
+    : [desc(orders.createdAt), desc(orders.id)];
   const db = getDb();
   const [rows, total] = await Promise.all([
     db
@@ -107,7 +111,7 @@ export async function listOrdersAdmin(opts: { status?: string; payment?: string;
       })
       .from(orders)
       .where(where)
-      .orderBy(desc(orders.createdAt))
+      .orderBy(...order)
       .limit(pageSize)
       .offset((page - 1) * pageSize),
     db.select({ n: count() }).from(orders).where(where),

@@ -1,23 +1,36 @@
 @import "tailwindcss";
 
-/* Design tokens (shadcn-compatible names). One accent colour; neutral stone surfaces. */
+/* Storefront design tokens — warm editorial commerce. One brand colour (deep green); a sand accent used sparingly.
+ * Components use these semantic names only (the admin overrides them inside .admin-theme). */
 @theme {
-  --color-background: #fafaf9;
-  --color-foreground: #1c1917;
+  --color-background: #fcfbf8;
+  --color-foreground: #1d2924;
   --color-card: #ffffff;
-  --color-muted: #f5f5f4;
-  --color-muted-foreground: #57534e;
-  --color-border: #e7e5e4;
-  --color-input: #d6d3d1;
-  --color-primary: #115e59;
+  --color-muted: #f5f2eb;
+  --color-muted-foreground: #5c6a63;
+  --color-border: #e5e3dc;
+  --color-input: #d7d4cb;
+  --color-primary: #17624f;
   --color-primary-foreground: #ffffff;
-  --color-accent: #f0fdfa;
-  --color-destructive: #b91c1c;
-  --color-success: #15803d;
-  --color-warning: #a16207;
-  --color-ring: #0f766e;
+  --color-accent: #edf4f0;
+  --color-sand: #b79258;
+  --color-sand-soft: #f6efe3;
+  --color-destructive: #b42318;
+  --color-success: #1f7a4d;
+  --color-warning: #8a5a00;
+  --color-ring: #17624f;
+  /* Semantic extras (overridden inside .admin-theme). */
+  --color-surface: #ffffff;
+  --color-surface-muted: #f5f2eb;
+  --color-border-strong: #cfcbc1;
+  --color-primary-hover: #104c3f;
+  --color-primary-soft: #edf4f0;
+  --color-success-soft: #eef7f1;
+  --color-warning-soft: #fbf3e2;
+  --color-destructive-soft: #fdeeec;
+  --color-info-soft: #eff2f1;
   --radius-md: 0.5rem;
-  --font-sans: "Segoe UI", "Noto Sans Arabic", "Noto Kufi Arabic", Tahoma, "Geeza Pro", system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans Arabic", "Segoe UI", "Noto Sans Arabic", Tahoma, "Geeza Pro", system-ui, sans-serif;
 }
 
 html {
@@ -47,32 +60,82 @@ body {
 .skip-link:focus {
   top: 1rem;
 }
-.prose-ar p { margin-block: 0.75rem; }
-.prose-ar h2 { font-size: 1.25rem; font-weight: 700; margin-block: 1.25rem 0.5rem; }
+.prose-ar { font-size: 1.0625rem; line-height: 2; color: color-mix(in oklab, var(--color-foreground) 88%, transparent); }
+.prose-ar p { margin-block: 0.9rem; }
+.prose-ar h2 { font-size: 1.375rem; line-height: 1.5; font-weight: 700; color: var(--color-foreground); margin-block: 2rem 0.5rem; }
+.prose-ar h2:first-child { margin-top: 0; }
 .prose-ar ul { list-style: disc; padding-inline-start: 1.5rem; }
+.prose-ar li { margin-block: 0.35rem; }
 
-/* ---------- Admin theme (scoped: the storefront keeps its own tokens) ---------- */
+/* ---------- Admin theme (scoped: the storefront keeps its own tokens) ----------
+ * Semantic tokens only — components never use raw hex. Warm off-white canvas, near-black ink,
+ * one restrained forest-green action colour; status colours carry meaning only. */
 .admin-theme {
-  --color-background: #f4f6f8;
-  --color-foreground: #101828;
-  --color-card: #ffffff;
-  --color-muted: #f2f4f7;
-  --color-muted-foreground: #5d6b7e;
-  --color-border: #e4e7ec;
-  --color-input: #d0d5dd;
-  --color-primary: #0f766e;
-  --color-accent: #e6f6f3;
-  --color-ring: #0f766e;
+  --color-background: #f9f8f5;
+  --color-surface: #ffffff;
+  --color-card: var(--color-surface);
+  --color-surface-muted: #f3f2ee;
+  --color-muted: var(--color-surface-muted);
+  --color-foreground: #1f2320;
+  --color-muted-foreground: #646b65;
+  --color-border: #e6e4de;
+  --color-border-strong: #d3d1c9;
+  --color-input: #d3d1c9;
+  --color-primary: #2a6b4a;
+  --color-primary-hover: #235c3f;
+  --color-primary-foreground: #ffffff;
+  --color-primary-soft: #ebf3ee;
+  --color-accent: var(--color-primary-soft);
+  --color-ring: #2a6b4a;
+  --color-focus: #2a6b4a;
+  --color-success: #23704a;
+  --color-success-soft: #e9f4ed;
+  --color-warning: #8a5a00;
+  --color-warning-soft: #fbf3e2;
+  --color-destructive: #b42318;
+  --color-destructive-soft: #fdeeec;
+  --color-info-soft: #eef2f6;
+  --color-overlay: rgb(20 22 20 / 0.36);
+  --radius-control: 8px;
 }
 .admin-sidebar {
-  background: linear-gradient(180deg, #0b2b29 0%, #082120 100%);
-  color: #fff;
+  background: var(--color-surface-muted);
+  color: var(--color-foreground);
+  border-inline-end: 1px solid var(--color-border);
 }
-.scroll-thin { scrollbar-width: thin; scrollbar-color: transparent transparent; }
-.scroll-thin:hover { scrollbar-color: rgb(255 255 255 / 0.18) transparent; }
-.scroll-thin::-webkit-scrollbar { width: 6px; }
-.scroll-thin::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
-.scroll-thin:hover::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.18); }
+.admin-sidebar-brand { background: var(--color-surface-muted); border-bottom: 1px solid var(--color-border); }
+.admin-theme .rounded-2xl { border-radius: 10px; }
+.admin-theme .rounded-xl { border-radius: 8px; }
+.admin-nav-scroll { scrollbar-width: thin; scrollbar-color: var(--color-border-strong) transparent; scrollbar-gutter: stable; overscroll-behavior: contain; }
+.admin-nav-scroll::-webkit-scrollbar { width: 5px; }
+.admin-nav-scroll::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 3px; }
+.admin-page-scroll { scrollbar-width: thin; scrollbar-color: var(--color-border-strong) transparent; scrollbar-gutter: stable; overscroll-behavior-y: contain; }
+.admin-page-scroll::-webkit-scrollbar { width: 8px; }
+.admin-page-scroll::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 4px; }
+
+/* Side sheet / dialog built on native <dialog> (focus trap, Escape, top layer for free). */
+dialog.admin-sheet {
+  margin: 0; padding: 0; border: 0; max-height: none; max-width: none;
+  inset-block: 0; inset-inline-end: 0; inset-inline-start: auto;
+  width: min(520px, 100vw); height: 100dvh;
+  background: var(--color-surface); color: var(--color-foreground);
+  border-inline-start: 1px solid var(--color-border);
+  box-shadow: 0 10px 40px rgb(0 0 0 / 0.12);
+}
+dialog.admin-sheet[open] { display: flex; flex-direction: column; animation: sheet-in var(--dur-base) var(--ease-out) both; }
+dialog.admin-modal {
+  margin: auto; padding: 0; border: 1px solid var(--color-border); border-radius: 10px;
+  width: min(460px, calc(100vw - 32px)); max-height: calc(100dvh - 32px);
+  background: var(--color-surface); color: var(--color-foreground);
+  box-shadow: 0 10px 40px rgb(0 0 0 / 0.14);
+}
+dialog.admin-modal[open] { display: flex; flex-direction: column; animation: fade-in var(--dur-fast) var(--ease-out) both; }
+/* Overlays may be rendered inside table cells: do not inherit cell alignment/weight/wrapping. */
+dialog.admin-sheet, dialog.admin-modal { text-align: start; white-space: normal; font-weight: 400; line-height: 1.6; }
+dialog.admin-sheet::backdrop, dialog.admin-modal::backdrop { background: var(--color-overlay); animation: fade-in var(--dur-fast) linear both; }
+@keyframes sheet-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+[dir="rtl"] dialog.admin-sheet[open] { animation-name: sheet-in-rtl; }
+@keyframes sheet-in-rtl { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
 
 /* ---------- Motion (admin) — transform/opacity only, ≤ 300ms ---------- */
 :root {
@@ -97,13 +160,13 @@ body {
 .stagger > * { animation: page-in 320ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 40ms); }
 .skeleton {
   border-radius: 0.375rem;
-  background: linear-gradient(90deg, var(--color-muted) 25%, #e7eaee 50%, var(--color-muted) 75%);
+  background: linear-gradient(90deg, var(--color-muted) 25%, var(--color-border) 50%, var(--color-muted) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.4s linear infinite;
 }
 .nav-progress {
   position: fixed; inset-inline: 0; top: 0; height: 2px; z-index: 60;
-  background: linear-gradient(90deg, #2dd4bf, #0f766e); transform-origin: left;
+  background: var(--color-primary); transform-origin: left;
   animation: progress 2.5s var(--ease-out) forwards;
 }
 [dir="rtl"] .nav-progress { transform-origin: right; }
@@ -119,3 +182,52 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------- Storefront ---------- */
+.container-store { width: 100%; max-width: 80rem; margin-inline: auto; padding-inline: 1rem; }
+@media (min-width: 768px) { .container-store { padding-inline: 1.5rem; } }
+@media (min-width: 1280px) { .container-store { padding-inline: 2rem; } }
+
+/* Woven-textile fallback drawn from a REAL variant colour when the merchant has not uploaded a photo.
+ * Abstract (not a fake product photo): warp/weft texture + a fouta-style striped border band. */
+/* In a layer so Tailwind utilities (absolute, inset-0, aspect-*) on the same element win. */
+@layer components {
+.textile {
+  --swatch: #b8b2a7;
+  --weft: color-mix(in oklab, var(--swatch) 78%, white);
+  --warp: color-mix(in oklab, var(--swatch) 86%, black);
+  --band: color-mix(in oklab, var(--swatch) 55%, black);
+  position: relative;
+  background-color: var(--swatch);
+  background-image:
+    linear-gradient(to bottom, transparent 0 74%, var(--band) 74% 75.5%, transparent 75.5% 77%, var(--weft) 77% 79%, transparent 79% 81%, var(--band) 81% 82.5%, transparent 82.5%),
+    repeating-linear-gradient(0deg, var(--weft) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(90deg, var(--warp) 0 1px, transparent 1px 4px);
+}
+.textile::after {
+  /* soft fold shading so it reads as cloth, not a flat block */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, rgb(255 255 255 / 0.18), transparent 40%, rgb(0 0 0 / 0.08) 75%, transparent);
+  pointer-events: none;
+}
+}
+.store-reveal { animation: page-in 320ms var(--ease-out) both; }
+dialog.store-drawer {
+  margin: 0; padding: 0; border: 0; max-height: none; max-width: none;
+  inset-block: 0; inset-inline-start: 0; inset-inline-end: auto;
+  width: min(22rem, 88vw); height: 100dvh;
+  background: var(--color-card); color: var(--color-foreground);
+  box-shadow: 0 10px 40px rgb(0 0 0 / 0.14);
+  text-align: start;
+}
+dialog.store-drawer[open] { display: flex; flex-direction: column; animation: fade-in var(--dur-base) var(--ease-out) both; }
+dialog.store-search {
+  margin: 0 auto; margin-top: 4.5rem; padding: 0; border: 1px solid var(--color-border); border-radius: 12px;
+  width: min(40rem, calc(100vw - 2rem));
+  background: var(--color-card); color: var(--color-foreground); text-align: start;
+  box-shadow: 0 16px 50px rgb(0 0 0 / 0.16);
+}
+dialog.store-search[open] { animation: fade-in var(--dur-fast) var(--ease-out) both; }
+dialog.store-drawer::backdrop, dialog.store-search::backdrop { background: rgb(20 26 23 / 0.38); }

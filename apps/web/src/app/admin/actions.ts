@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { inventoryAdjustmentSchema, orderCancelSchema, orderStatusChangeSchema, teamMemberCreateSchema, teamMemberUpdateSchema } from "@saudi-ecom/contracts";
-import { addMedia, addTier, deactivateTier, deleteMedia, deleteTaxonomy, saveColor, saveContent, saveProduct, saveSize, saveTaxonomy, saveVariant, type TaxonomyTable } from "@/server/admin/catalog";
+import { addMedia, addTier, addTiersBatch, deactivateTier, deleteMedia, deleteTaxonomy, saveColor, saveContent, saveProduct, saveSize, saveTaxonomy, saveVariant, type TaxonomyTable } from "@/server/admin/catalog";
 import { createTeamMember, inviteTeamMember, setCustomerStatus, updateTeamMember } from "@/server/admin/people";
 import { requireAdmin, requireStaff } from "@/server/auth/guards";
 import { adjustStock } from "@/server/inventory";
+import { getLocale } from "@/i18n/locale";
 import { isAppError } from "@/server/lib/errors";
 import { putSetting } from "@/server/lib/settings";
 import { cancelOrder, changeOrderStatus } from "@/server/orders/queries";
@@ -17,8 +18,19 @@ import { ZodError } from "zod";
  * Every action re-authorizes on the server (never trusts hidden fields or the UI).
  * Results are reported via ?ok= / ?error= on redirect so pages work without client JS.
  */
+/** English versions of the success messages (errors come from the domain layer, Arabic for now). */
+const OK_EN: Record<string, string> = {
+  "تم الحفظ": "Saved",
+  "تم الحذف": "Deleted",
+  "تم إيقاف الشريحة": "Tier deactivated",
+  "تم تعديل المخزون": "Stock adjusted",
+  "تم إلغاء الطلب": "Order cancelled",
+  "تم إنشاء الشحنة": "Shipment created",
+  "تم تحديث التتبع": "Tracking updated",
+};
 async function run(back: string, fn: () => Promise<unknown>, okMsg = "تم الحفظ") {
-  let target = `${back}${back.includes("?") ? "&" : "?"}ok=${encodeURIComponent(okMsg)}`;
+  const msg = (await getLocale()) === "en" ? (OK_EN[okMsg] ?? okMsg) : okMsg;
+  let target = `${back}${back.includes("?") ? "&" : "?"}ok=${encodeURIComponent(msg)}`;
   try {
     await fn();
     revalidatePath("/admin", "layout");
@@ -117,7 +129,7 @@ export async function saveSizeAction(fd: FormData) {
 }
 export async function saveVariantAction(fd: FormData) {
   const u = await requireStaff();
-  await run("/admin/variants", () =>
+  await run(back(fd, "/admin/variants"), () =>
     saveVariant(u.id, {
       id: optStr(fd, "id") ?? undefined,
       productId: str(fd, "productId"),
@@ -132,13 +144,19 @@ export async function saveVariantAction(fd: FormData) {
 }
 export async function addTierAction(fd: FormData) {
   const u = await requireStaff();
-  await run(`/admin/pricing?variantId=${str(fd, "variantId")}`, () =>
+  await run(back(fd, `/admin/pricing?variantId=${str(fd, "variantId")}`), () =>
     addTier(u.id, { variantId: str(fd, "variantId"), mode: str(fd, "mode"), minQty: int(fd, "minQty"), maxQty: int(fd, "maxQty"), unitPriceHalalas: sarToHalalas(fd, "unitPrice") }),
+  );
+}
+export async function addTiersBatchAction(fd: FormData) {
+  const u = await requireStaff();
+  await run(back(fd, "/admin/pricing"), () =>
+    addTiersBatch(u.id, { variantIds: fd.getAll("variantIds").map(String), mode: str(fd, "mode"), minQty: int(fd, "minQty"), maxQty: int(fd, "maxQty"), unitPriceHalalas: sarToHalalas(fd, "unitPrice") }),
   );
 }
 export async function deactivateTierAction(fd: FormData) {
   const u = await requireStaff();
-  await run(`/admin/pricing?variantId=${str(fd, "variantId")}`, () => deactivateTier(u.id, str(fd, "tierId")), "تم إيقاف الشريحة");
+  await run(back(fd, `/admin/pricing?variantId=${str(fd, "variantId")}`), () => deactivateTier(u.id, str(fd, "tierId")), "تم إيقاف الشريحة");
 }
 export async function saveTaxonomyAction(fd: FormData) {
   const u = await requireStaff();
@@ -158,7 +176,7 @@ export async function deleteTaxonomyAction(fd: FormData) {
 /* Inventory */
 export async function adjustStockAction(fd: FormData) {
   const u = await requireStaff();
-  await run("/admin/inventory", async () => {
+  await run(back(fd, "/admin/inventory"), async () => {
     const b = inventoryAdjustmentSchema.parse({ variantId: str(fd, "variantId"), delta: int(fd, "delta"), reason: str(fd, "reason") });
     await adjustStock({ ...b, actorId: u.id });
   }, "تم تعديل المخزون");
@@ -173,35 +191,26 @@ export async function saveOperationalSettingsAction(fd: FormData) {
 }
 export async function saveCommerceSettingsAction(fd: FormData) {
   const u = await requireAdmin(); // privileged: tax, holds, terms version
-  await run("/admin/settings", () =>
+  await run(back(fd, "/admin/settings"), () =>
     putSetting("commerce", { vatRateBps: int(fd, "vatRateBps") ?? 1500, pricesIncludeVat: bool(fd, "pricesIncludeVat"), reservationMinutes: int(fd, "reservationMinutes") ?? 15, termsVersion: str(fd, "termsVersion") }, u.id),
   );
 }
+/**
+ * Settings are split across tabs, so only the fields present in the submitted form are written
+ * (putSetting merges); a tab never blanks fields that belong to another tab.
+ */
 export async function saveStoreProfileAction(fd: FormData) {
   const u = await requireAdmin();
-  await run("/admin/settings", () =>
-    putSetting(
-      "store",
-      {
-        name: str(fd, "name"),
-        nameEn: str(fd, "nameEn"),
-        legalName: optStr(fd, "legalName"),
-        commercialRegistration: optStr(fd, "commercialRegistration"),
-        vatNumber: optStr(fd, "vatNumber"),
-        email: optStr(fd, "email"),
-        phone: optStr(fd, "phone"),
-        whatsapp: optStr(fd, "whatsapp"),
-        address: optStr(fd, "address"),
-        enabledPaymentMethods: fd.getAll("enabledPaymentMethods").map(String) as never,
-        legalApproved: bool(fd, "legalApproved"),
-      },
-      u.id,
-    ),
-  );
+  const v: Record<string, unknown> = {};
+  for (const k of ["name", "nameEn"] as const) if (fd.has(k)) v[k] = str(fd, k);
+  for (const k of ["legalName", "commercialRegistration", "vatNumber", "email", "phone", "whatsapp", "address"] as const) if (fd.has(k)) v[k] = optStr(fd, k);
+  if (fd.has("_paymentMethods")) v.enabledPaymentMethods = fd.getAll("enabledPaymentMethods").map(String);
+  if (fd.has("_legal")) v.legalApproved = bool(fd, "legalApproved");
+  await run(back(fd, "/admin/settings"), () => putSetting("store", v as never, u.id));
 }
 export async function saveContentAction(fd: FormData) {
   const u = await requireStaff();
-  await run(`/admin/settings?content=${str(fd, "slug")}`, () => saveContent(u, { slug: str(fd, "slug"), title: str(fd, "title"), body: str(fd, "body"), approved: bool(fd, "approved") }));
+  await run(`/admin/settings?tab=content&content=${str(fd, "slug")}`, () => saveContent(u, { slug: str(fd, "slug"), title: str(fd, "title"), body: str(fd, "body"), approved: bool(fd, "approved") }));
 }
 
 /* ADMIN ONLY: people */

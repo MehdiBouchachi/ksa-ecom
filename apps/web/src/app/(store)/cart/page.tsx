@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "سلة التسوق", robots: { inde
 export default function CartPage() {
   return (
     <>
-      <h1 className="mb-6 text-2xl font-bold">سلة التسوق</h1>
+      <h1 className="mb-6 text-[28px] font-bold tracking-tight md:mb-8 md:text-4xl">سلة التسوق</h1>
       <CartView />
     </>
   );

@@ -9,9 +9,9 @@ export async function ContentPage({ slug, href }: { slug: string; href: string }
   return (
     <>
       <Breadcrumbs items={[{ name: c.title, href }]} />
-      <h1 className="mt-2 text-2xl font-bold">{c.title}</h1>
-      <div className="mt-4">
-        <ContentBody body={c.body} approved={c.approved} />
+      <h1 className="mt-3 max-w-3xl text-[28px] font-bold leading-tight tracking-tight md:text-4xl">{c.title}</h1>
+      <div className="mt-6 md:mt-8">
+        <ContentBody body={c.body} approved={c.approved} variant={slug === "faq" ? "faq" : "prose"} />
       </div>
     </>
   );

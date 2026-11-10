@@ -96,7 +96,14 @@ services:
     image: saudi-ecom:latest
     pull_policy: never
     entrypoint: ["node", "/app/docker/cron.mjs"]
-    healthcheck: { disable: true } # the image healthcheck probes the web server
+    # Healthy = cron can reach the app it triggers (same CRON_TARGET it posts to). Not "disable":
+    # older Compose releases (CI runners) fail `up --wait` on a service whose healthcheck is disabled.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch((process.env.CRON_TARGET||'http://app:3000').replace(/\\/$/,'')+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
     depends_on:
       app: { condition: service_healthy }
     volumes: [app-secrets:/run/app-secrets:ro]

@@ -1,4 +1,7 @@
 # Durable project state — Claude updates after every task
+**Active refactor (2026-11-10): single product / multi-variant — see `docs/REFACTOR_STATE.md` (checkpoint 1 done, next: 2 schema).**
+**Admin UI/UX redesign (2026-11-10): all admin screens done — see `docs/UI_REFACTOR_STATE.md`.**
+**Storefront redesign (2026-11-10): P0–P5 done — see `docs/STOREFRONT_REDESIGN_STATE.md` (merchant photos/content still needed).**
 Current task: T10 Admin UI/UX + i18n — next: translate remaining admin pages (orders, products, inventory…). Release T08 — **blocked on merchant/provider inputs** (see Blockers)
 Completed: T01–T07 implemented and tested; T08 engineering parts done (security headers, SEO, a11y, runbook, CI, E2E)
 Repository: pnpm monorepo, single Next.js 16 app `apps/web`, `packages/contracts`

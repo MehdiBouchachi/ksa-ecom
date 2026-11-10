@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { formatDate, formatSAR } from "@saudi-ecom/contracts";
-import { StatusBadges } from "@/components/account/status-badges";
-import { btnCls, btnOutlineCls, inputCls, PageTitle, Table } from "@/components/admin/ui";
+import { OrderStatusSummary } from "@/components/admin/order-status-summary";
+import { btnOutlineCls, inputCls, PageTitle, Table } from "@/components/admin/ui";
 import { adminDict, statusLabels } from "@/i18n/admin";
 import { getLocale } from "@/i18n/locale";
 import { cn } from "@/lib/utils";
@@ -15,14 +16,15 @@ export async function generateMetadata() {
   return { title: adminDict(await getLocale()).orders.title };
 }
 
-export default async function Orders({ searchParams }: { searchParams: Promise<{ status?: string; payment?: string; q?: string; page?: string }> }) {
+export default async function Orders({ searchParams }: { searchParams: Promise<{ status?: string; payment?: string; q?: string; sort?: string; page?: string }> }) {
   await requireStaff();
   const locale = await getLocale();
   const t = adminDict(locale).orders;
   const L = statusLabels(locale);
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1) || 1);
-  const r = await listOrdersAdmin({ status: sp.status, payment: sp.payment, q: sp.q, page });
+  const sort = (["newest", "oldest", "total_desc", "total_asc"] as const).find((value) => value === sp.sort) ?? "newest";
+  const r = await listOrdersAdmin({ status: sp.status, payment: sp.payment, q: sp.q, sort, page });
 
   const href = (o: { page?: number; status?: string | null; keepFilters?: boolean }) => {
     const status = o.status === undefined ? sp.status : o.status;
@@ -31,10 +33,13 @@ export default async function Orders({ searchParams }: { searchParams: Promise<{
     if (status) p.set("status", status);
     if (keep && sp.payment) p.set("payment", sp.payment);
     if (keep && sp.q) p.set("q", sp.q);
+    if (sort !== "newest") p.set("sort", sort);
     if (o.page && o.page > 1) p.set("page", String(o.page));
     const s = p.toString();
     return s ? `/admin/orders?${s}` : "/admin/orders";
   };
+
+  if (r.total > 0 && (page - 1) * r.pageSize >= r.total) redirect(href({ page: Math.ceil(r.total / r.pageSize) }));
 
   const tabs: { label: string; status: string | null }[] = [
     { label: t.all, status: null },
@@ -56,7 +61,7 @@ export default async function Orders({ searchParams }: { searchParams: Promise<{
     <>
       <PageTitle description={t.count(r.total)}>{t.title}</PageTitle>
 
-      <nav aria-label={L.prefix.order} className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-1">
+      <nav aria-label={L.prefix.order} className="mb-5 flex flex-wrap gap-x-1 border-b border-border">
         {tabs.map((tab) => {
           const active = (sp.status ?? null) === tab.status;
           return (
@@ -65,8 +70,8 @@ export default async function Orders({ searchParams }: { searchParams: Promise<{
               href={href({ status: tab.status })}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm transition-colors duration-150",
-                active ? "border-primary bg-primary font-medium text-white" : "border-border bg-card text-foreground/80 hover:border-stone-300 hover:bg-muted",
+                "-mb-px inline-flex min-h-10 items-center whitespace-nowrap border-b-2 px-3 text-sm transition-colors duration-150",
+                active ? "border-primary font-semibold text-foreground" : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
               )}
             >
               {tab.label}
@@ -75,7 +80,7 @@ export default async function Orders({ searchParams }: { searchParams: Promise<{
         })}
       </nav>
 
-      <form className="mb-4 flex flex-wrap gap-2" method="get" role="search" action="/admin/orders">
+      <form className="mb-4 flex flex-wrap gap-2 rounded-lg border border-border bg-card p-3" method="get" role="search" action="/admin/orders">
         {sp.status && <input type="hidden" name="status" value={sp.status} />}
         <label className="relative min-w-0 basis-full sm:basis-60 sm:flex-1">
           <span className="sr-only">{t.searchLabel}</span>
@@ -91,7 +96,13 @@ export default async function Orders({ searchParams }: { searchParams: Promise<{
             ))}
           </select>
         </label>
-        <button className={cn(btnCls, "flex-1 sm:flex-none")}>{t.filter}</button>
+        <label className="w-full sm:w-44">
+          <span className="sr-only">{t.sortLabel}</span>
+          <select name="sort" defaultValue={sort} className={inputCls}>
+            {Object.entries(t.sort).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
+        <button className={cn(btnOutlineCls, "flex-1 sm:flex-none")}>{t.filter}</button>
         {(sp.q || sp.payment) && (
           <Link href={href({ keepFilters: false })} className={btnOutlineCls}>
             <X className="size-4" aria-hidden />
@@ -101,41 +112,44 @@ export default async function Orders({ searchParams }: { searchParams: Promise<{
       </form>
 
       {/* Mobile: stacked cards (no sideways scrolling) */}
-      <ul className="space-y-2 md:hidden">
+      <ul className="space-y-2 lg:hidden">
         {r.items.map((o) => (
           <li key={o.id}>
-            <Link href={`/admin/orders/${o.id}`} className="block rounded-2xl border border-border bg-card p-4 shadow-[0_1px_2px_rgb(16_24_40/0.04)] transition-colors active:bg-muted">
+            <Link href={`/admin/orders/${o.id}`} className="block rounded-lg border border-border bg-card p-4 transition-colors hover:bg-muted/50 focus-visible:outline-primary active:bg-muted">
               <span className="flex items-start justify-between gap-3">
                 <span className="min-w-0">
                   <span className="block font-mono font-semibold text-primary" dir="ltr">{o.reference}</span>
-                  <span className="block truncate text-sm">{o.customerName}</span>
+                  <span className="block break-words text-sm">{o.customerName}</span>
                 </span>
-                <span className="tabular shrink-0 font-semibold">{formatSAR(o.totalHalalas, locale)}</span>
+                <span className="flex shrink-0 items-center gap-1.5"><span className="tabular font-semibold">{formatSAR(o.totalHalalas, locale)}</span><Next className="size-4 text-muted-foreground" aria-hidden /></span>
               </span>
               <span className="mt-2 block">
-                <StatusBadges order={o.orderStatus} payment={o.paymentStatus} shipping={o.shippingStatus} locale={locale} compact />
+                <OrderStatusSummary order={o.orderStatus} payment={o.paymentStatus} shipping={o.shippingStatus} locale={locale} />
               </span>
               <span className="mt-2 block text-xs text-muted-foreground">{formatDate(o.createdAt, true, locale)}</span>
             </Link>
           </li>
         ))}
-        {!r.items.length && <li className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">{t.empty}</li>}
+        {!r.items.length && <li className="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground">{t.empty}</li>}
       </ul>
 
-      <Table className="hidden md:block" head={[t.cols.ref, t.cols.customer, t.cols.status, <span key="t" className="block text-end">{t.cols.total}</span>]} empty={!r.items.length} emptyText={t.empty}>
+      <Table className="hidden lg:block" caption={t.title} head={[t.cols.ref, t.cols.customer, t.cols.status, <span key="t" className="block text-end">{t.cols.total}</span>, <span key="a" className="sr-only">{t.view}</span>]} empty={!r.items.length} emptyText={t.empty}>
         {r.items.map((o) => (
           <tr key={o.id}>
             <td>
-              <Link href={`/admin/orders/${o.id}`} className="block font-mono font-semibold text-primary hover:underline" dir="ltr">
-                {o.reference}
-              </Link>
+              <span className="block font-mono font-semibold text-foreground" dir="ltr">{o.reference}</span>
               <span className="block text-xs text-muted-foreground">{formatDate(o.createdAt, true, locale)}</span>
             </td>
-            <td className="max-w-48 truncate">{o.customerName}</td>
+            <td className="max-w-56 whitespace-normal font-medium">{o.customerName}</td>
             <td>
-              <StatusBadges order={o.orderStatus} payment={o.paymentStatus} shipping={o.shippingStatus} locale={locale} compact />
+              <OrderStatusSummary order={o.orderStatus} payment={o.paymentStatus} shipping={o.shippingStatus} locale={locale} />
             </td>
             <td className="tabular whitespace-nowrap text-end font-semibold">{formatSAR(o.totalHalalas, locale)}</td>
+            <td className="text-end">
+              <Link href={`/admin/orders/${o.id}`} className="inline-flex min-h-9 items-center gap-1 whitespace-nowrap rounded-md border border-border px-2.5 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-accent focus-visible:outline-primary" aria-label={`${t.view} ${o.reference}`}>
+                {t.view}<Next className="size-3.5" aria-hidden />
+              </Link>
+            </td>
           </tr>
         ))}
       </Table>

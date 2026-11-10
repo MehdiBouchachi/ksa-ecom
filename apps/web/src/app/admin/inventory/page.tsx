@@ -1,9 +1,12 @@
-import { AlertTriangle, Boxes, CircleSlash, History, SlidersHorizontal } from "lucide-react";
+import Link from "next/link";
+import { History, SearchX, SlidersHorizontal } from "lucide-react";
 import { formatDate } from "@saudi-ecom/contracts";
-import { btnCls, Field, Flash, inputCls, PageTitle, Section, Table } from "@/components/admin/ui";
+import { Overlay, OverlayFooter, SubmitButton } from "@/components/admin/overlay";
+import { StockAdjustFields } from "@/components/admin/stock-adjust";
+import { AdminPageHeader, btnCls, btnGhostCls, btnOutlineCls, Callout, EmptyState, Field, FilterBar, Flash, inputCls, StatStrip, StatusBadge, Swatch, Table, withParams } from "@/components/admin/ui";
 import { getLocale } from "@/i18n/locale";
 import { cn } from "@/lib/utils";
-import { listAdjustments, listVariantsAdmin } from "@/server/admin/catalog";
+import { listAdjustments, listColors, listVariantsAdmin } from "@/server/admin/catalog";
 import { requireStaff } from "@/server/auth/guards";
 import { getSetting } from "@/server/lib/settings";
 import { adjustStockAction } from "../actions";
@@ -11,43 +14,111 @@ import { adjustStockAction } from "../actions";
 const T = {
   ar: {
     title: "المخزون",
-    desc: "مخزون واحد مشترك بين التجزئة والجملة لكل خيار (لون × مقاس).",
-    total: "إجمالي الخيارات",
-    low: "مخزون منخفض",
+    desc: "مخزون واحد لكل خيار (لون × مقاس) مشترك بين البيع بالتجزئة والجملة.",
+    filters: "تصفية المخزون",
+    search: "بحث",
+    searchPh: "SKU أو لون أو مقاس",
+    color: "اللون",
+    allColors: "كل الألوان",
+    level: "المستوى",
+    anyLevel: "كل المستويات",
+    apply: "تطبيق",
+    clear: "مسح",
+    statTotal: "الخيارات",
+    statUnits: "قطع في المستودع",
+    statReserved: "قطع محجوزة",
+    low: "منخفض",
     out: "نفد",
-    adjust: "تعديل المخزون",
-    variant: "الخيار",
-    delta: "التغيير",
-    deltaHint: "رقم موجب للإضافة، سالب للخصم",
-    reason: "السبب",
-    reasonHint: "إلزامي — يظهر في سجل التدقيق",
-    submit: "تسجيل التعديل",
-    note: "لا يمكن خفض المخزون تحت الكمية المحجوزة لطلبات قيد الدفع. كل تعديل يُسجَّل باسمك في سجل غير قابل للتعديل.",
-    cols: ["SKU", "اللون / المقاس", "في المستودع", "محجوز", "متاح"],
-    ledger: "سجل الحركات",
-    ledgerCols: ["التاريخ", "SKU", "التغيير", "النوع", "السبب", "بعد", "بواسطة"],
-    system: "النظام",
     ok: "متوفر",
+    cols: ["الخيار", "SKU", "في المستودع", "محجوز", "متاح", "الحالة", ""],
+    adjust: "تعديل",
+    adjustTitle: (l: string) => `تعديل مخزون ${l}`,
+    adjustDesc: "كل تعديل يُسجَّل باسمك مع السبب في سجل غير قابل للتعديل.",
+    reason: "السبب",
+    reasonHint: "إلزامي، 3 أحرف على الأقل. مثال: استلام شحنة من المورد.",
+    reasons: ["استلام شحنة من المورد", "جرد دوري", "تالف", "مرتجع من عميل", "تصحيح خطأ إدخال"],
+    submit: "تسجيل التعديل",
+    saving: "جارٍ التسجيل…",
+    cancel: "إلغاء",
+    close: "إغلاق",
+    legend: "متاح = في المستودع − محجوز. المحجوز = كميات في طلبات تنتظر الدفع؛ تُحرَّر تلقائيًا إذا انتهت مهلة الدفع.",
+    mode: "نوع التعديل",
+    addM: "إضافة",
+    removeM: "خصم",
+    setM: "تحديد العدد",
+    qty: "الكمية",
+    qtyHint: { add: "عدد القطع المستلمة.", remove: "عدد القطع المخصومة (تالف، فقد…).", set: "العدد الفعلي بعد الجرد." },
+    onHand: "في المستودع",
+    reserved: "محجوز",
+    available: "متاح",
+    now: "الآن",
+    after: "بعد التعديل",
+    belowReserved: "لا يمكن النزول تحت الكمية المحجوزة ({n}).",
+    noChange: "لا يوجد تغيير.",
+    ledger: "سجل الحركات",
+    ledgerDesc: "آخر 50 حركة. السجل للإضافة فقط ولا يمكن تعديله.",
+    ledgerCols: ["التاريخ", "SKU", "التغيير", "النوع", "السبب", "بعدها", "بواسطة"],
+    kinds: { RESTOCK: "إضافة", ADJUSTMENT: "تعديل", SALE: "بيع", CANCEL_RESTOCK: "إرجاع بعد إلغاء", RETURN_RESTOCK: "مرتجع" } as Record<string, string>,
+    system: "النظام",
+    noMatch: "لا توجد خيارات مطابقة",
+    empty: "لا توجد خيارات بعد",
+    emptyBody: "أنشئ الخيارات أولًا من صفحة الخيارات.",
+    toVariants: "الذهاب إلى الخيارات",
+    noLedger: "لا توجد حركات بعد.",
   },
   en: {
-    title: "Inventory",
+    title: "Stock",
     desc: "One stock pool per variant (color × size), shared by retail and wholesale.",
-    total: "Total variants",
-    low: "Low stock",
+    filters: "Filter stock",
+    search: "Search",
+    searchPh: "SKU, color or size",
+    color: "Color",
+    allColors: "All colors",
+    level: "Level",
+    anyLevel: "Any level",
+    apply: "Apply",
+    clear: "Clear",
+    statTotal: "Variants",
+    statUnits: "Units on hand",
+    statReserved: "Units reserved",
+    low: "Low",
     out: "Out of stock",
-    adjust: "Adjust stock",
-    variant: "Variant",
-    delta: "Change",
-    deltaHint: "Positive to add, negative to remove",
-    reason: "Reason",
-    reasonHint: "Required — recorded in the audit log",
-    submit: "Record adjustment",
-    note: "Stock cannot go below quantities reserved for orders awaiting payment. Every change is recorded under your name in an append-only log.",
-    cols: ["SKU", "Color / size", "On hand", "Reserved", "Available"],
-    ledger: "Movement log",
-    ledgerCols: ["Date", "SKU", "Change", "Type", "Reason", "After", "By"],
-    system: "System",
     ok: "In stock",
+    cols: ["Variant", "SKU", "On hand", "Reserved", "Available", "State", ""],
+    adjust: "Adjust",
+    adjustTitle: (l: string) => `Adjust stock — ${l}`,
+    adjustDesc: "Every change is recorded under your name with its reason in an append-only log.",
+    reason: "Reason",
+    reasonHint: "Required, at least 3 characters. E.g. supplier delivery received.",
+    reasons: ["Supplier delivery received", "Stock count", "Damaged", "Customer return", "Data entry correction"],
+    submit: "Record adjustment",
+    saving: "Recording…",
+    cancel: "Cancel",
+    close: "Close",
+    legend: "Available = on hand − reserved. Reserved = units in orders awaiting payment; released automatically when payment times out.",
+    mode: "Adjustment type",
+    addM: "Add",
+    removeM: "Remove",
+    setM: "Set count",
+    qty: "Quantity",
+    qtyHint: { add: "Units received.", remove: "Units removed (damaged, lost…).", set: "Actual count after a stock take." },
+    onHand: "On hand",
+    reserved: "Reserved",
+    available: "Available",
+    now: "Now",
+    after: "After",
+    belowReserved: "Cannot go below the reserved quantity ({n}).",
+    noChange: "No change.",
+    ledger: "Movement log",
+    ledgerDesc: "Latest 50 movements. The log is append-only.",
+    ledgerCols: ["Date", "SKU", "Change", "Type", "Reason", "After", "By"],
+    kinds: { RESTOCK: "Restock", ADJUSTMENT: "Adjustment", SALE: "Sale", CANCEL_RESTOCK: "Cancel restock", RETURN_RESTOCK: "Return" } as Record<string, string>,
+    system: "System",
+    noMatch: "No variants match these filters",
+    empty: "No variants yet",
+    emptyBody: "Create variants first on the Variants page.",
+    toVariants: "Go to Variants",
+    noLedger: "No movements yet.",
   },
 };
 
@@ -55,116 +126,171 @@ export async function generateMetadata() {
   return { title: T[await getLocale()].title };
 }
 
-export default async function Inventory({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
+type SP = { q?: string; color?: string; level?: string; ok?: string; error?: string };
+
+export default async function Inventory({ searchParams }: { searchParams: Promise<SP> }) {
   await requireStaff();
   const locale = await getLocale();
   const t = T[locale];
-  const [variants, ledger, commerce] = await Promise.all([listVariantsAdmin(), listAdjustments(undefined, 50), getSetting("commerce")]);
+  const sp = await searchParams;
+  const [variants, ledger, commerce, colors] = await Promise.all([listVariantsAdmin(), listAdjustments(undefined, 50), getSetting("commerce"), listColors()]);
   const threshold = commerce.lowStockThreshold;
-  const rows = variants.map((v) => ({ ...v, avail: (v.onHand ?? 0) - (v.reserved ?? 0) }));
-  const outN = rows.filter((r) => r.avail <= 0).length;
-  const lowN = rows.filter((r) => r.avail > 0 && r.avail <= threshold).length;
+  const rows = variants.map((v) => ({ ...v, colorName: (locale === "en" && v.colorNameEn) || v.colorName, onHand: v.onHand ?? 0, reserved: v.reserved ?? 0, avail: (v.onHand ?? 0) - (v.reserved ?? 0) }));
+  const level = (a: number) => (a <= 0 ? "out" : a <= threshold ? "low" : "ok");
+  const filters = { q: sp.q?.trim() || undefined, color: sp.color || undefined, level: sp.level || undefined };
+  const q = filters.q?.toLowerCase();
+  const filtered = rows
+    .filter((v) => (!q || v.sku.toLowerCase().includes(q) || v.colorName.toLowerCase().includes(q) || v.sizeName.toLowerCase().includes(q)) && (!filters.color || v.colorId === filters.color) && (!filters.level || level(v.avail) === filters.level))
+    // Problems first: out, then low, then the rest in catalogue order.
+    .sort((a, b) => ["out", "low", "ok"].indexOf(level(a.avail)) - ["out", "low", "ok"].indexOf(level(b.avail)));
+  const anyFilter = Object.values(filters).some(Boolean);
+  const backHref = withParams("/admin/inventory", filters, {});
+  const outN = rows.filter((r) => level(r.avail) === "out").length;
+  const lowN = rows.filter((r) => level(r.avail) === "low").length;
 
-  const stats = [
-    { label: t.total, n: rows.length, icon: Boxes, tint: "bg-sky-50 text-sky-700 ring-sky-100" },
-    { label: t.low, n: lowN, icon: AlertTriangle, tint: "bg-amber-50 text-amber-700 ring-amber-100" },
-    { label: t.out, n: outN, icon: CircleSlash, tint: "bg-red-50 text-red-700 ring-red-100" },
-  ];
+  const badge = (a: number) => {
+    const l = level(a);
+    return <StatusBadge tone={l === "out" ? "danger" : l === "low" ? "warning" : "success"}>{l === "out" ? t.out : l === "low" ? t.low : t.ok}</StatusBadge>;
+  };
+  const adjust = (v: (typeof rows)[number]) => {
+    const label = `${v.colorName} / ${v.sizeName}`;
+    return (
+      <Overlay
+        trigger={<><SlidersHorizontal className="size-4" aria-hidden /> {t.adjust}</>}
+        triggerClassName={cn(btnOutlineCls, "min-h-9 px-3")}
+        triggerLabel={`${t.adjust} — ${v.sku}`}
+        title={t.adjustTitle(label)}
+        description={<span dir="ltr" className="font-mono text-xs">{v.sku}</span>}
+        closeLabel={t.close}
+      >
+        <form action={adjustStockAction} className="space-y-5">
+          <input type="hidden" name="variantId" value={v.id} />
+          <input type="hidden" name="back" value={backHref} />
+          <StockAdjustFields
+            onHand={v.onHand}
+            reserved={v.reserved}
+            inputCls={inputCls}
+            s={{ mode: t.mode, add: t.addM, remove: t.removeM, set: t.setM, qty: t.qty, qtyHint: t.qtyHint, onHand: t.onHand, reserved: t.reserved, available: t.available, now: t.now, after: t.after, belowReserved: t.belowReserved, noChange: t.noChange }}
+          />
+          <Field label={t.reason} required hint={t.reasonHint}>
+            <input name="reason" required minLength={3} maxLength={300} list={`reasons-${v.id}`} autoComplete="off" className={inputCls} />
+            <datalist id={`reasons-${v.id}`}>{t.reasons.map((r) => <option key={r} value={r} />)}</datalist>
+          </Field>
+          <p className="text-xs text-muted-foreground">{t.adjustDesc}</p>
+          <OverlayFooter cancelLabel={t.cancel}>
+            <SubmitButton className={btnCls} pendingLabel={t.saving}>{t.submit}</SubmitButton>
+          </OverlayFooter>
+        </form>
+      </Overlay>
+    );
+  };
 
   return (
     <>
-      <PageTitle description={t.desc}>{t.title}</PageTitle>
-      <Flash sp={await searchParams} />
+      <AdminPageHeader title={t.title} description={t.desc} />
+      <Flash sp={sp} />
 
-      <div className="stagger mb-6 grid grid-cols-3 gap-3 sm:gap-4">
-        {stats.map((s, i) => (
-          <div key={s.label} style={{ "--i": i } as React.CSSProperties} className="flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-[0_1px_2px_rgb(16_24_40/0.04)]">
-            <span className={cn("hidden size-10 shrink-0 place-items-center rounded-xl ring-1 ring-inset sm:grid", s.tint)} aria-hidden>
-              <s.icon className="size-5" />
-            </span>
-            <span className="min-w-0">
-              <span className="block truncate text-xs text-muted-foreground sm:text-sm">{s.label}</span>
-              <span className="tabular block text-xl font-bold">{s.n}</span>
-            </span>
-          </div>
-        ))}
-      </div>
+      {rows.length === 0 ? (
+        <EmptyState title={t.empty} action={<Link href="/admin/variants" className={btnOutlineCls}>{t.toVariants}</Link>}>{t.emptyBody}</EmptyState>
+      ) : (
+        <>
+          <StatStrip
+            items={[
+              { label: t.statTotal, value: rows.length },
+              { label: t.out, value: outN, tone: outN ? "danger" : undefined, href: "/admin/inventory?level=out" },
+              { label: t.low, value: lowN, tone: lowN ? "warning" : undefined, href: "/admin/inventory?level=low" },
+              { label: t.statUnits, value: rows.reduce((n, r) => n + r.onHand, 0) },
+              { label: t.statReserved, value: rows.reduce((n, r) => n + r.reserved, 0) },
+            ]}
+          />
+          <FilterBar label={t.filters}>
+            <label className="min-w-0 flex-1 basis-56">
+              <span className="mb-1 block text-xs font-medium text-muted-foreground">{t.search}</span>
+              <input type="search" name="q" defaultValue={filters.q} placeholder={t.searchPh} className={inputCls} />
+            </label>
+            <label className="w-[calc(50%-4px)] sm:w-40">
+              <span className="mb-1 block text-xs font-medium text-muted-foreground">{t.color}</span>
+              <select name="color" defaultValue={filters.color ?? ""} className={inputCls}>
+                <option value="">{t.allColors}</option>
+                {colors.map((c) => <option key={c.id} value={c.id}>{(locale === "en" && c.nameEn) || c.name}</option>)}
+              </select>
+            </label>
+            <label className="w-[calc(50%-4px)] sm:w-40">
+              <span className="mb-1 block text-xs font-medium text-muted-foreground">{t.level}</span>
+              <select name="level" defaultValue={filters.level ?? ""} className={inputCls}>
+                <option value="">{t.anyLevel}</option>
+                <option value="out">{t.out}</option>
+                <option value="low">{t.low}</option>
+                <option value="ok">{t.ok}</option>
+              </select>
+            </label>
+            <div className="flex gap-2">
+              <button className={btnOutlineCls}>{t.apply}</button>
+              {anyFilter && <Link href="/admin/inventory" className={btnGhostCls}>{t.clear}</Link>}
+            </div>
+          </FilterBar>
 
-      <Section
-        className="mb-6"
-        title={
-          <span className="flex items-center gap-2">
-            <SlidersHorizontal className="size-4 text-primary" aria-hidden /> {t.adjust}
-          </span>
-        }
-      >
-        <form action={adjustStockAction} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_2fr_auto] lg:items-start">
-          <Field label={t.variant}>
-            <select name="variantId" required className={inputCls}>
-              {rows.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.sku} — {v.colorName} / {v.sizeName} ({v.avail})
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label={t.delta} hint={t.deltaHint}>
-            <input name="delta" type="number" required dir="ltr" placeholder="+10 / -3" className={inputCls} />
-          </Field>
-          <Field label={t.reason} hint={t.reasonHint}>
-            <input name="reason" required minLength={3} className={inputCls} />
-          </Field>
-          <div className="lg:pt-[1.625rem]">
-            <button className={cn(btnCls, "w-full lg:w-auto")}>{t.submit}</button>
-          </div>
-        </form>
-        <p className="mt-4 text-xs text-muted-foreground">{t.note}</p>
-      </Section>
+          {filtered.length === 0 ? (
+            <EmptyState icon={SearchX} title={t.noMatch} action={<Link href="/admin/inventory" className={btnOutlineCls}>{t.clear}</Link>} />
+          ) : (
+            <>
+              <div className="hidden md:block">
+                <Table head={[t.cols[0], t.cols[1], <span key="h" className="block text-end">{t.cols[2]}</span>, <span key="r" className="block text-end">{t.cols[3]}</span>, <span key="a" className="block text-end">{t.cols[4]}</span>, t.cols[5], ""]} caption={t.title}>
+                  {filtered.map((v) => (
+                    <tr key={v.id}>
+                      <td><span className="inline-flex items-center gap-2 whitespace-nowrap"><Swatch hex={v.swatchHex} /> {v.colorName} / <span className="font-medium">{v.sizeName}</span></span></td>
+                      <td className="font-mono text-xs" dir="ltr">{v.sku}</td>
+                      <td className="tabular text-end">{v.onHand}</td>
+                      <td className="tabular text-end text-muted-foreground">{v.reserved}</td>
+                      <td className="tabular text-end font-semibold">{v.avail}</td>
+                      <td>{badge(v.avail)}</td>
+                      <td className="w-px text-end">{adjust(v)}</td>
+                    </tr>
+                  ))}
+                </Table>
+              </div>
+              <ul className="space-y-2 md:hidden">
+                {filtered.map((v) => (
+                  <li key={v.id} className="rounded-lg border border-border bg-card p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-2 font-medium"><Swatch hex={v.swatchHex} /> {v.colorName} / {v.sizeName}</p>
+                        <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground" dir="ltr">{v.sku}</p>
+                      </div>
+                      {badge(v.avail)}
+                    </div>
+                    <dl className="mt-2 grid grid-cols-3 gap-2 text-sm">
+                      <div><dt className="text-xs text-muted-foreground">{t.onHand}</dt><dd className="tabular">{v.onHand}</dd></div>
+                      <div><dt className="text-xs text-muted-foreground">{t.reserved}</dt><dd className="tabular">{v.reserved}</dd></div>
+                      <div><dt className="text-xs text-muted-foreground">{t.available}</dt><dd className="tabular font-semibold">{v.avail}</dd></div>
+                    </dl>
+                    <div className="mt-2 flex justify-end">{adjust(v)}</div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          <Callout className="mt-4">{t.legend}</Callout>
+        </>
+      )}
 
-      <Table head={[...t.cols.slice(0, 4), <span key="a" className="block text-end">{t.cols[4]}</span>]} empty={!rows.length}>
-        {rows.map((v) => (
-          <tr key={v.id}>
-            <td className="font-mono text-xs" dir="ltr">{v.sku}</td>
-            <td>{v.colorName} / {v.sizeName}</td>
-            <td className="tabular">{v.onHand ?? 0}</td>
-            <td className="tabular text-muted-foreground">{v.reserved ?? 0}</td>
-            <td className="text-end">
-              <span
-                className={cn(
-                  "tabular inline-flex min-w-12 items-center justify-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset",
-                  v.avail <= 0 ? "bg-red-50 text-red-700 ring-red-200" : v.avail <= threshold ? "bg-amber-50 text-amber-800 ring-amber-200" : "bg-emerald-50 text-emerald-700 ring-emerald-200",
-                )}
-                title={v.avail <= 0 ? t.out : v.avail <= threshold ? t.low : t.ok}
-              >
-                {v.avail}
-                {v.avail <= 0 && <span className="sr-only"> — {t.out}</span>}
-                {v.avail > 0 && v.avail <= threshold && <span className="sr-only"> — {t.low}</span>}
-              </span>
-            </td>
-          </tr>
-        ))}
-      </Table>
-
-      <h2 className="mb-3 mt-8 flex items-center gap-2 text-lg font-semibold">
-        <History className="size-5 text-primary" aria-hidden /> {t.ledger}
-      </h2>
-      <Table head={t.ledgerCols} empty={!ledger.length}>
-        {ledger.map((l) => (
-          <tr key={l.id}>
-            <td className="whitespace-nowrap text-xs text-muted-foreground">{formatDate(l.createdAt, true, locale)}</td>
-            <td className="font-mono text-xs" dir="ltr">{l.sku}</td>
-            <td>
-              <span dir="ltr" className={cn("tabular inline-block rounded-md px-2 py-0.5 text-xs font-semibold", l.delta < 0 ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700")}>
-                {l.delta > 0 ? `+${l.delta}` : l.delta}
-              </span>
-            </td>
-            <td className="text-xs">{l.kind}</td>
-            <td className="max-w-64 truncate" title={l.reason ?? undefined}>{l.reason}</td>
-            <td className="tabular">{l.onHandAfter}</td>
-            <td className="text-muted-foreground">{l.actor ?? t.system}</td>
-          </tr>
-        ))}
-      </Table>
+      <section className="mt-8" aria-labelledby="ledger-h">
+        <h2 id="ledger-h" className="flex items-center gap-2 text-base font-semibold"><History className="size-4 text-muted-foreground" aria-hidden /> {t.ledger}</h2>
+        <p className="mb-3 mt-0.5 text-sm text-muted-foreground">{t.ledgerDesc}</p>
+        <Table head={t.ledgerCols} empty={!ledger.length} emptyText={t.noLedger} caption={t.ledger}>
+          {ledger.map((l) => (
+            <tr key={l.id}>
+              <td className="whitespace-nowrap text-xs text-muted-foreground">{formatDate(l.createdAt, true, locale)}</td>
+              <td className="font-mono text-xs" dir="ltr">{l.sku}</td>
+              <td><span dir="ltr" className={cn("tabular font-semibold", l.delta < 0 ? "text-destructive" : "text-success")}>{l.delta > 0 ? `+${l.delta}` : l.delta}</span></td>
+              <td className="whitespace-nowrap text-xs">{t.kinds[l.kind] ?? l.kind}</td>
+              <td className="max-w-64 truncate" title={l.reason ?? undefined}>{l.reason}</td>
+              <td className="tabular">{l.onHandAfter}</td>
+              <td className="text-muted-foreground">{l.actor ?? t.system}</td>
+            </tr>
+          ))}
+        </Table>
+      </section>
     </>
   );
 }

@@ -14,14 +14,14 @@ export async function getDashboard(requestedDays = 30) {
   const { lowStockThreshold } = await getSetting("commerce");
   // Riyadh-local calendar days, zero-filled. `days` is a whitelisted integer (bound as a parameter).
   const riyadhDay = sql`(${orders.paidAt} at time zone 'Asia/Riyadh')::date`;
-  const [revenue, byStatus, recent, lowStock, prev, series] = await Promise.all([
+  const [revenue, byStatus, recent, lowStock, prev, series, attention] = await Promise.all([
     db
       .select({ revenue: sql<number>`coalesce(sum(${orders.totalHalalas}),0)::bigint`, paidOrders: sql<number>`count(*)::int` })
       .from(orders)
       .where(and(eq(orders.paymentStatus, "PAID"), gte(orders.paidAt, since))),
     db.select({ status: orders.orderStatus, n: sql<number>`count(*)::int` }).from(orders).groupBy(orders.orderStatus),
     db
-      .select({ id: orders.id, reference: orders.reference, orderStatus: orders.orderStatus, paymentStatus: orders.paymentStatus, shippingStatus: orders.shippingStatus, totalHalalas: orders.totalHalalas, createdAt: orders.createdAt })
+      .select({ id: orders.id, reference: orders.reference, customerName: sql<string>`${orders.customerSnapshot}->>'name'`, orderStatus: orders.orderStatus, paymentStatus: orders.paymentStatus, shippingStatus: orders.shippingStatus, totalHalalas: orders.totalHalalas, createdAt: orders.createdAt })
       .from(orders)
       .orderBy(desc(orders.createdAt))
       .limit(10),
@@ -47,7 +47,21 @@ export async function getDashboard(requestedDays = 30) {
       left join (select ${orders.id} as id, ${orders.totalHalalas} as total_halalas, ${riyadhDay} as d from ${orders}
                  where ${orders.paymentStatus} = 'PAID' and ${orders.paidAt} >= ${new Date(since.getTime() - 86_400_000)}) o on o.d = days.d
       group by days.d order by days.d`),
+    // Operational "needs attention" counts (uncapped; same rules as the shipping queue / stock pages).
+    db.execute<{ to_ship: number; ship_issues: number; out_of_stock: number; low_stock: number }>(sql`
+      select
+        (select count(*)::int from orders o left join shipments s on s.order_id = o.id
+          where o.payment_status = 'PAID' and o.order_status in ('CONFIRMED','PROCESSING','READY_FOR_SHIPPING')
+            and (s.id is null or s.create_state <> 'DONE')) as to_ship,
+        (select count(*)::int from shipments s join orders o on o.id = s.order_id
+          where o.order_status not in ('CANCELLED','RETURNED','DELIVERED')
+            and (s.create_state = 'ERROR' or s.status in ('FAILED','RETURNED'))) as ship_issues,
+        (select count(*)::int from inventory i join product_variants v on v.id = i.variant_id
+          where v.active and i.on_hand - i.reserved <= 0) as out_of_stock,
+        (select count(*)::int from inventory i join product_variants v on v.id = i.variant_id
+          where v.active and i.on_hand - i.reserved > 0 and i.on_hand - i.reserved <= ${lowStockThreshold}) as low_stock`),
   ]);
+  const att = attention.rows[0];
   return {
     periodDays: days,
     revenueHalalas: Number(revenue[0]?.revenue ?? 0),
@@ -58,5 +72,6 @@ export async function getDashboard(requestedDays = 30) {
     byStatus: Object.fromEntries(byStatus.map((r) => [r.status, r.n])) as Record<string, number>,
     recent,
     lowStock: lowStock.map((r) => ({ ...r, available: r.onHand - r.reserved })),
+    attention: { toShip: Number(att?.to_ship ?? 0), shippingIssues: Number(att?.ship_issues ?? 0), outOfStock: Number(att?.out_of_stock ?? 0), lowStock: Number(att?.low_stock ?? 0) },
   };
 }

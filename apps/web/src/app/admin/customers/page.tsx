@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { formatDate } from "@saudi-ecom/contracts";
-import { btnCls, btnOutlineCls, inputCls, PageTitle, StatusPill, Table } from "@/components/admin/ui";
+import { Users } from "lucide-react";
+import { btnOutlineCls, EmptyState, inputCls, PageTitle, StatusPill, Table } from "@/components/admin/ui";
 import { Forbidden } from "@/components/admin/forbidden";
 import { getLocale } from "@/i18n/locale";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,8 @@ const T = {
     pages: "الصفحات",
     showing: (a: number, b: number, n: number) => `عرض ${a}–${b} من ${n}`,
     empty: "لا يوجد عملاء مطابقون",
+    noneTitle: "لا يوجد عملاء بعد",
+    noneBody: "يظهر العملاء هنا عند إنشاء حساب في المتجر. تُعرض فقط البيانات اللازمة لدعم الطلبات.",
   },
   en: {
     title: "Customers",
@@ -36,6 +39,8 @@ const T = {
     pages: "Pages",
     showing: (a: number, b: number, n: number) => `Showing ${a}–${b} of ${n}`,
     empty: "No matching customers",
+    noneTitle: "No customers yet",
+    noneBody: "Customers appear here once they create a store account. Only the data needed to support orders is shown.",
   },
 };
 
@@ -61,13 +66,17 @@ export default async function Customers({ searchParams }: { searchParams: Promis
   return (
     <>
       <PageTitle description={t.count(r.total)}>{t.title}</PageTitle>
+      {!sp.q && r.total === 0 ? (
+        <EmptyState icon={Users} title={t.noneTitle}>{t.noneBody}</EmptyState>
+      ) : (
+      <>
       <form method="get" role="search" className="mb-4 flex max-w-xl gap-2">
         <label className="relative min-w-0 flex-1">
           <span className="sr-only">{t.searchBtn}</span>
           <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <input name="q" type="search" defaultValue={sp.q} placeholder={t.search} className={cn(inputCls, "ps-9")} />
         </label>
-        <button className={btnCls}>{t.searchBtn}</button>
+        <button className={btnOutlineCls}>{t.searchBtn}</button>
       </form>
       <Table head={t.cols} empty={!r.items.length} emptyText={t.empty}>
         {r.items.map((c) => (
@@ -96,6 +105,8 @@ export default async function Customers({ searchParams }: { searchParams: Promis
             {to < r.total ? <Link href={href(page + 1)} className={btnOutlineCls}>{t.next}<Next className="size-4" aria-hidden /></Link> : <span className={disabled} aria-disabled>{t.next}<Next className="size-4" aria-hidden /></span>}
           </span>
         </nav>
+      )}
+      </>
       )}
     </>
   );

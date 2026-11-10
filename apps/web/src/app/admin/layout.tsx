@@ -27,26 +27,32 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       items: [
         { key: "products", href: "/admin/products", label: n.products },
         { key: "variants", href: "/admin/variants", label: n.variants },
-        { key: "pricing", href: "/admin/pricing", label: n.pricing },
         { key: "inventory", href: "/admin/inventory", label: n.inventory },
+        { key: "pricing", href: "/admin/pricing", label: n.pricing },
+      ],
+    },
+    {
+      label: t.groups.merchandising,
+      collapsible: true,
+      items: [
         { key: "categories", href: "/admin/categories", label: n.categories },
         { key: "brands", href: "/admin/brands", label: n.brands },
         { key: "collections", href: "/admin/collections", label: n.collections },
       ],
     },
-    { label: t.groups.store, items: [{ key: "settings", href: "/admin/settings", label: n.settings }] },
   ];
-  // Hidden for Managers (also enforced server-side on every page/action).
+  // People is Admin-only (also enforced server-side on every page/action).
   if (user.role === "ADMIN") {
     groups.push({ label: t.groups.people, items: [{ key: "customers", href: "/admin/customers", label: n.customers }, { key: "team", href: "/admin/team", label: n.team }] });
   }
+  groups.push({ label: t.groups.store, items: [{ key: "settings", href: "/admin/settings", label: n.settings }] });
 
   return (
     <AdminShell
       locale={locale}
       groups={groups}
       user={{ name: user.fullName, role: t.roles[user.role as keyof typeof t.roles] ?? user.role }}
-      s={{ brand: t.brand, viewStore: t.viewStore, openMenu: t.openMenu, closeMenu: t.closeMenu, language: t.language, languageLabel: t.languageLabel, signOut: t.signOut }}
+      s={{ brand: t.brand, viewStore: t.viewStore, openMenu: t.openMenu, closeMenu: t.closeMenu, language: t.language, languageLabel: t.languageLabel, signOut: t.signOut, collapse: t.collapse, expand: t.expand }}
     >
       {children}
     </AdminShell>

@@ -4,6 +4,6 @@ export async function generateMetadata() {
   return { title: await taxonomyTitle("categories") };
 }
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; edit?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; q?: string }> }) {
   return <TaxonomyAdmin kind="categories" sp={await searchParams} />;
 }

@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { AlertTriangle, ArrowLeft, ArrowRight, CreditCard, MapPin, Package, RefreshCw, Settings2, Truck, History } from "lucide-react";
 import { canTransition, formatDate, formatSAR, ORDER_TRANSITIONS, type OrderStatus, type ShipmentStatus } from "@saudi-ecom/contracts";
 import { StatusBadges } from "@/components/account/status-badges";
-import { btnCls, btnOutlineCls, ConfirmBox, Flash, inputCls, Table } from "@/components/admin/ui";
+import { Overlay, OverlayFooter, SubmitButton } from "@/components/admin/overlay";
+import { btnCls, btnDangerCls, btnGhostCls, btnOutlineCls, Field, Flash, inputCls, Table } from "@/components/admin/ui";
+import { cn } from "@/lib/utils";
 import { statusLabels } from "@/i18n/admin";
 import { getLocale } from "@/i18n/locale";
 import { requireStaff } from "@/server/auth/guards";
@@ -48,6 +50,11 @@ const T = {
     refundNote: "الاسترداد المالي يتم عبر لوحة مزود الدفع ويسجَّل في سجل التدقيق.",
     confirm: (r: string) => `أؤكد إلغاء الطلب ${r}`,
     confirmCancel: "تأكيد الإلغاء",
+    keep: "تراجع",
+    close: "إغلاق",
+    working: "جارٍ التنفيذ…",
+    cancelTitle: (r: string) => `إلغاء الطلب ${r}؟`,
+    cancelBody: "سيُحرَّر المخزون المحجوز وتتوقف معالجة الطلب. لا يمكن التراجع.",
     timeline: "السجل الزمني",
     streams: { ORDER: "الطلب", PAYMENT: "الدفع", SHIPPING: "الشحن" } as Record<string, string>,
     carrier: "أرامكس",
@@ -89,6 +96,11 @@ const T = {
     refundNote: "Refunds are issued from the payment provider dashboard and recorded in the audit log.",
     confirm: (r: string) => `I confirm cancelling order ${r}`,
     confirmCancel: "Confirm cancellation",
+    keep: "Keep order",
+    close: "Close",
+    working: "Working…",
+    cancelTitle: (r: string) => `Cancel order ${r}?`,
+    cancelBody: "Reserved stock is released and processing stops. This cannot be undone.",
     timeline: "Timeline",
     streams: { ORDER: "Order", PAYMENT: "Payment", SHIPPING: "Shipping" } as Record<string, string>,
     carrier: "Aramex",
@@ -101,7 +113,7 @@ export async function generateMetadata() {
 
 function Card({ icon: Icon, title, sub, children, className = "" }: { icon: typeof Package; title: string; sub?: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`rounded-2xl border border-border bg-card shadow-[0_1px_2px_rgb(16_24_40/0.04)] ${className}`}>
+    <section className={`rounded-2xl border border-border bg-card ${className}`}>
       <div className="flex items-center gap-2 border-b border-border px-5 py-3.5">
         <Icon className="size-4 text-primary" aria-hidden />
         <h2 className="font-semibold">{title}</h2>
@@ -238,18 +250,18 @@ export default async function AdminOrder({ params, searchParams }: { params: Pro
                   <form action={refreshShipmentAction}>
                     <input type="hidden" name="shipmentId" value={d.shipment.id} />
                     <input type="hidden" name="back" value={`/admin/orders/${o.id}`} />
-                    <button className={btnOutlineCls}>
+                    <SubmitButton className={btnOutlineCls} pendingLabel={t.working}>
                       <RefreshCw className="size-4" aria-hidden /> {t.refresh}
-                    </button>
+                    </SubmitButton>
                   </form>
                 )}
                 {canShip && (
                   <form action={createShipmentAction}>
                     <input type="hidden" name="orderId" value={o.id} />
-                    <button className={btnCls}>
+                    <SubmitButton className={btnCls} pendingLabel={t.working}>
                       <Truck className="size-4" aria-hidden />
                       {d.shipment?.createState === "ERROR" ? t.retryShipment : t.createShipment}
-                    </button>
+                    </SubmitButton>
                   </form>
                 )}
               </div>
@@ -270,34 +282,43 @@ export default async function AdminOrder({ params, searchParams }: { params: Pro
                     ))}
                   </select>
                 </label>
-                <label className="block">
-                  <span className="sr-only">{t.note}</span>
-                  <input name="note" placeholder={t.note} className={inputCls} />
-                </label>
-                <button className={`${btnCls} w-full`}>{t.update}</button>
+                <Field label={t.note}>
+                  <input name="note" maxLength={500} className={inputCls} />
+                </Field>
+                <SubmitButton className={cn(btnOutlineCls, "w-full")} pendingLabel={t.working}>{t.update}</SubmitButton>
               </form>
             ) : (
               <p className="text-muted-foreground">{t.noActions}</p>
             )}
             {canCancel && (
-              <details className="group mt-4 rounded-lg border border-red-100 bg-red-50/40 open:bg-red-50/60">
-                <summary className="cursor-pointer list-none px-3 py-2.5 font-medium text-destructive marker:hidden">{t.cancel}</summary>
-                <form action={orderCancelAction} className="space-y-3 px-3 pb-3">
-                  <input type="hidden" name="orderId" value={o.id} />
-                  <label className="block">
-                    <span className="sr-only">{t.reason}</span>
-                    <input name="reason" required minLength={3} placeholder={t.reason} className={inputCls} />
-                  </label>
-                  {o.paymentStatus === "PAID" && (
-                    <label className="flex cursor-pointer items-center gap-2">
-                      <input type="checkbox" name="restock" defaultChecked className="size-4 accent-primary" /> {t.restock}
-                    </label>
-                  )}
-                  {o.paymentStatus === "PAID" && <p className="text-xs text-muted-foreground">{t.refundNote}</p>}
-                  <ConfirmBox label={t.confirm(o.reference)} />
-                  <button className="min-h-10 w-full rounded-lg bg-destructive px-4 text-sm font-semibold text-white transition-colors hover:bg-destructive/90">{t.confirmCancel}</button>
-                </form>
-              </details>
+              <div className="mt-4 border-t border-border pt-4">
+                <Overlay
+                  kind="modal"
+                  trigger={t.cancel}
+                  triggerClassName={cn(btnGhostCls, "w-full text-destructive hover:bg-destructive-soft hover:text-destructive")}
+                  title={t.cancelTitle(o.reference)}
+                  description={t.cancelBody}
+                  closeLabel={t.close}
+                >
+                  <form action={orderCancelAction} className="space-y-4">
+                    <input type="hidden" name="orderId" value={o.id} />
+                    <Field label={t.reason} required>
+                      <input name="reason" required minLength={3} maxLength={500} className={inputCls} />
+                    </Field>
+                    {o.paymentStatus === "PAID" && (
+                      <>
+                        <label className="flex cursor-pointer items-center gap-2 text-sm">
+                          <input type="checkbox" name="restock" defaultChecked className="size-4 accent-primary" /> {t.restock}
+                        </label>
+                        <p className="text-xs text-muted-foreground">{t.refundNote}</p>
+                      </>
+                    )}
+                    <OverlayFooter cancelLabel={t.keep}>
+                      <SubmitButton className={btnDangerCls} pendingLabel={t.working}>{t.confirmCancel}</SubmitButton>
+                    </OverlayFooter>
+                  </form>
+                </Overlay>
+              </div>
             )}
           </Card>
 

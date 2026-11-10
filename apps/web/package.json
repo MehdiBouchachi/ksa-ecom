@@ -20,6 +20,7 @@
     "db:check-connection": "tsx scripts/check-connection.ts"
   },
   "dependencies": {
+    "@fontsource/ibm-plex-sans-arabic": "5.3.0",
     "@saudi-ecom/contracts": "workspace:*",
     "bcryptjs": "3.0.3",
     "class-variance-authority": "0.7.1",

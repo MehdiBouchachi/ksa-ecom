@@ -81,7 +81,8 @@ async function main() {
   await c.query("update users set role='MANAGER' where email='manager@e2e.test'");
   await c.end();
 
-  server = spawn(path.join(root, "node_modules/.bin/next"), ["start", "-p", String(appPort)], { cwd: root, env: { ...env, NODE_ENV: "production" }, stdio: ["ignore", "pipe", "pipe"] });
+  // Node + Next JS entry (portable: Linux CI and Windows, where .bin/next is a .cmd shim).
+  server = spawn(process.execPath, [path.join(root, "node_modules/next/dist/bin/next"), "start", "-p", String(appPort)], { cwd: root, env: { ...env, NODE_ENV: "production" }, stdio: ["ignore", "pipe", "pipe"] });
   let serverLog = "";
   server.stdout!.on("data", (d) => (serverLog += d));
   server.stderr!.on("data", (d) => (serverLog += d));
@@ -174,10 +175,14 @@ async function main() {
     console.log("ACC-11 Manager vs Admin");
     const m = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
     await login(m, appUrl, "manager@e2e.test", "ManagerPass-12345", "/admin");
+    // The admin streams a loading skeleton first: wait for the real heading instead of a one-shot check.
+    await m.getByRole("heading", { name: "نظرة عامة" }).waitFor({ timeout: 30000 }).catch(() => {});
     assert(await m.getByRole("heading", { name: "نظرة عامة" }).isVisible(), "manager reaches dashboard");
     assert((await m.getByRole("link", { name: "العملاء" }).count()) === 0, "customers link hidden for manager");
     for (const p of ["/admin/customers", "/admin/team"]) {
       await m.goto(appUrl + p);
+      await m.getByRole("heading", { name: "غير مصرح" }).waitFor({ timeout: 30000 }).catch(() => {});
+      if (!(await m.getByRole("heading", { name: "غير مصرح" }).isVisible())) await m.screenshot({ path: path.join(out, `blocked${p.replace(/\//g, "_")}.png`), fullPage: true });
       assert(await m.getByRole("heading", { name: "غير مصرح" }).isVisible(), `manager blocked from ${p} by URL`);
       const api = await m.request.get(appUrl + "/api/v1" + p);
       assert(api.status() === 403, `manager gets 403 from /api/v1${p}`);

@@ -33,6 +33,6 @@ export const sortLabel = {
 export const modeLabel = { RETAIL: "تجزئة", BULK: "جملة" } as const;
 
 export const t = {
-  nav: { home: "الرئيسية", products: "المنتجات", about: "من نحن", faq: "الأسئلة الشائعة", contact: "تواصل معنا", cart: "السلة", wishlist: "المفضلة", account: "حسابي", login: "تسجيل الدخول", logout: "تسجيل الخروج", admin: "لوحة التحكم" },
-  common: { sar: "ر.س", addToCart: "أضف إلى السلة", buyNow: "اشترِ الآن", outOfStock: "نفدت الكمية", inStock: "متوفر", lowStock: "كمية محدودة", save: "حفظ", cancel: "إلغاء", search: "بحث", apply: "تطبيق", reset: "إعادة تعيين", next: "التالي", prev: "السابق" },
+  nav: { home: "الرئيسية", collections: "التشكيلات", menu: "القائمة", main: "القائمة الرئيسية", search: "البحث في المتجر", searchPlaceholder: "ابحث باللون أو المقاس أو رمز المنتج…", products: "المنتجات", about: "من نحن", faq: "الأسئلة الشائعة", contact: "تواصل معنا", cart: "السلة", wishlist: "المفضلة", account: "حسابي", login: "تسجيل الدخول", logout: "تسجيل الخروج", admin: "لوحة التحكم" },
+  common: { close: "إغلاق", sar: "ر.س", addToCart: "أضف إلى السلة", buyNow: "اشترِ الآن", outOfStock: "نفدت الكمية", inStock: "متوفر", lowStock: "كمية محدودة", save: "حفظ", cancel: "إلغاء", search: "بحث", apply: "تطبيق", reset: "إعادة تعيين", next: "التالي", prev: "السابق" },
 };

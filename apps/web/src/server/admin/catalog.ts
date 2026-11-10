@@ -188,6 +188,7 @@ export async function listVariantsAdmin(productId?: string) {
       sku: productVariants.sku,
       colorId: productVariants.colorId,
       colorName: colors.name,
+      colorNameEn: colors.nameEn,
       swatchHex: colors.swatchHex,
       sizeId: productVariants.sizeId,
       sizeName: sizes.name,
@@ -273,6 +274,42 @@ export async function addTier(actorId: string, raw: unknown) {
   }
 }
 
+export const tierBatchSchema = z
+  .object({
+    variantIds: z.array(z.uuid()).min(1).max(500),
+    mode: z.enum(["RETAIL", "BULK"]),
+    minQty: z.number().int().min(1),
+    maxQty: z.number().int().min(1).nullable(),
+    unitPriceHalalas: z.number().int().min(1),
+  })
+  .refine((t) => t.maxQty === null || t.maxQty >= t.minQty, { message: "maxQty must be >= minQty", path: ["maxQty"] });
+
+/**
+ * Adds the same tier to several variants, all-or-nothing: variant rows are locked in id order,
+ * every overlap is collected and reported by SKU, and nothing is written if any variant conflicts.
+ */
+export async function addTiersBatch(actorId: string, raw: unknown) {
+  const t = tierBatchSchema.parse(raw);
+  const ids = [...new Set(t.variantIds)].sort();
+  try {
+    return await withTx(async (tx) => {
+      const vs = await tx.select({ id: productVariants.id, sku: productVariants.sku }).from(productVariants).where(inArray(productVariants.id, ids)).orderBy(asc(productVariants.id)).for("update");
+      if (vs.length !== ids.length) throw new AppError("INVALID_VARIANT", "خيار غير موجود");
+      const existing = await tx.select().from(priceTiers).where(and(inArray(priceTiers.variantId, ids), eq(priceTiers.mode, t.mode), eq(priceTiers.active, true)));
+      const conflicts = vs.filter((v) => existing.some((e) => e.variantId === v.id && rangesOverlap(e, t))).map((v) => v.sku);
+      if (conflicts.length) throw new AppError("CONFLICT", `الشريحة تتداخل مع شرائح قائمة في: ${conflicts.join("، ")}`, { conflicts });
+      const rows = await tx
+        .insert(priceTiers)
+        .values(ids.map((variantId) => ({ variantId, mode: t.mode, minQty: t.minQty, maxQty: t.maxQty, unitPriceHalalas: t.unitPriceHalalas })))
+        .returning({ id: priceTiers.id });
+      await audit(tx, actorId, "tier.create_batch", "price_tier", rows[0]!.id, { ...t, variantIds: ids, tierIds: rows.map((r) => r.id) });
+      return { count: rows.length };
+    });
+  } catch (e) {
+    mapUnique(e);
+  }
+}
+
 export async function deactivateTier(actorId: string, id: string) {
   const rows = await getDb().update(priceTiers).set({ active: false }).where(eq(priceTiers.id, id)).returning({ id: priceTiers.id });
   if (!rows.length) throw new AppError("NOT_FOUND", "غير موجود");
@@ -298,6 +335,19 @@ export const taxonomyInputSchema = z.object({
 export async function listTaxonomyAdmin(kind: TaxonomyTable) {
   const t = TAXONOMY_TABLES[kind];
   return getDb().select().from(t).orderBy(asc(t.sortOrder), asc(t.name));
+}
+
+const TAXONOMY_LINKS = {
+  categories: { table: productCategories, col: productCategories.categoryId },
+  brands: { table: productBrands, col: productBrands.brandId },
+  collections: { table: productCollections, col: productCollections.collectionId },
+} as const;
+
+/** How many products each grouping is attached to (shown so staff know what a delete affects). */
+export async function taxonomyUsage(kind: TaxonomyTable): Promise<Map<string, number>> {
+  const { table, col } = TAXONOMY_LINKS[kind];
+  const rows = await getDb().select({ id: col, n: sql<number>`count(*)::int` }).from(table).groupBy(col);
+  return new Map(rows.map((r) => [r.id, r.n]));
 }
 
 export async function saveTaxonomy(actorId: string, kind: TaxonomyTable, raw: unknown) {
@@ -351,7 +401,9 @@ export async function deleteMedia(actorId: string, id: string) {
 }
 
 /* ---------------------------------- Content ---------------------------------- */
-export const CONTENT_SLUGS = ["about", "faq", "shipping", "returns", "privacy", "terms"] as const;
+export const CONTENT_SLUGS = ["home", "about", "faq", "shipping", "returns", "privacy", "terms"] as const;
+/** Pages that must be legally approved before launch (the home hero text is marketing copy, not a policy). */
+export const POLICY_SLUGS = ["about", "faq", "shipping", "returns", "privacy", "terms"] as const;
 export const contentInputSchema = z.object({
   slug: z.enum(CONTENT_SLUGS),
   title: z.string().trim().min(2).max(150),

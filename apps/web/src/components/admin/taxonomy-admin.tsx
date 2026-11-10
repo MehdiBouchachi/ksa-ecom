@@ -1,54 +1,107 @@
 import Link from "next/link";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
-import { btnCls, btnOutlineCls, CheckRow, ConfirmBox, Field, Flash, inputCls, PageTitle, Section, StatusPill, Table } from "@/components/admin/ui";
+import { FolderTree, Pencil, Plus, SearchX, Trash2 } from "lucide-react";
+import { deleteTaxonomyAction, saveTaxonomyAction } from "@/app/admin/actions";
+import { Overlay, OverlayFooter, SubmitButton } from "@/components/admin/overlay";
+import { AdminPageHeader, btnCls, btnDangerCls, btnGhostCls, btnOutlineCls, CheckRow, EmptyState, Field, FilterBar, Flash, FormSection, iconBtnCls, inputCls, StatusBadge, Table } from "@/components/admin/ui";
 import { getLocale } from "@/i18n/locale";
 import { cn } from "@/lib/utils";
-import { listTaxonomyAdmin, type TaxonomyTable } from "@/server/admin/catalog";
+import { listTaxonomyAdmin, taxonomyUsage, type TaxonomyTable } from "@/server/admin/catalog";
 import { requireStaff } from "@/server/auth/guards";
-import { deleteTaxonomyAction, saveTaxonomyAction } from "@/app/admin/actions";
 
 const T = {
   ar: {
     titles: { categories: "التصنيفات", brands: "العلامات التجارية", collections: "المجموعات" } as Record<TaxonomyTable, string>,
-    count: (n: number) => `${n} عنصر`,
-    add: "إضافة جديد",
+    descs: {
+      categories: "تُستخدم في تصفح المتجر وفلاتره. اربطها بالمنتج من صفحة المنتج الرئيسي.",
+      brands: "تظهر في صفحة المنتج وفلاتر المتجر عند الحاجة.",
+      collections: "مجموعات عرض موسمية أو تسويقية تظهر كصفحات في المتجر.",
+    } as Record<TaxonomyTable, string>,
+    singular: { categories: "تصنيف", brands: "علامة", collections: "مجموعة" } as Record<TaxonomyTable, string>,
+    add: (k: string) => `إضافة ${k}`,
+    editTitle: (n: string) => `تعديل «${n}»`,
     edit: "تعديل",
-    name: "الاسم",
+    search: "بحث",
+    searchPh: "الاسم أو الرابط",
+    apply: "بحث",
+    clear: "مسح",
+    secBasics: "الأساسيات",
+    name: "الاسم بالعربية",
+    nameEn: "الاسم بالإنجليزية",
     slug: "الرابط (slug)",
-    sort: "الترتيب",
-    description: "الوصف",
+    slugHint: "حروف لاتينية صغيرة وأرقام وشرطات.",
+    sort: "ترتيب العرض",
+    sortHint: "الأصغر يظهر أولًا.",
+    active: "نشط (ظاهر في المتجر)",
+    secDesc: "الوصف",
+    description: "وصف يظهر أعلى صفحة المتجر",
+    seo: "تحسين محركات البحث",
     seoTitle: "عنوان SEO",
     seoDesc: "وصف SEO",
-    active: "نشط",
-    save: "حفظ التعديل",
+    save: "حفظ التغييرات",
     create: "إضافة",
+    saving: "جارٍ الحفظ…",
     cancel: "إلغاء",
-    cols: ["الاسم", "الرابط", "الحالة", ""],
-    pill: ["نشط", "موقوف"] as [string, string],
+    close: "إغلاق",
+    cols: ["الاسم", "الرابط", "الترتيب", "مرتبط بالمنتج", "الحالة", ""],
+    linked: "نعم",
+    notLinked: "لا",
+    on: "نشط",
+    off: "موقوف",
     del: "حذف",
-    confirmDel: (n: string) => `أؤكد حذف "${n}"`,
-    confirm: "تأكيد الحذف",
+    delTitle: (n: string) => `حذف «${n}»؟`,
+    delBody: "سيُزال من المتجر ومن ربطه بالمنتج. لا يمكن التراجع.",
+    delLinked: "مرتبط حاليًا بالمنتج — سيُلغى الربط.",
+    delConfirm: "حذف نهائي",
+    empty: "لا يوجد شيء بعد",
+    emptyBody: "أضف أول عنصر لتنظيم عرض المنتج في المتجر.",
+    noMatch: "لا توجد نتائج مطابقة",
   },
   en: {
     titles: { categories: "Categories", brands: "Brands", collections: "Collections" } as Record<TaxonomyTable, string>,
-    count: (n: number) => `${n} item${n === 1 ? "" : "s"}`,
-    add: "Add new",
+    descs: {
+      categories: "Used for store browsing and filters. Link them to the product on the Main product page.",
+      brands: "Shown on the product page and in store filters when relevant.",
+      collections: "Seasonal or marketing groupings shown as pages in the store.",
+    } as Record<TaxonomyTable, string>,
+    singular: { categories: "category", brands: "brand", collections: "collection" } as Record<TaxonomyTable, string>,
+    add: (k: string) => `Add ${k}`,
+    editTitle: (n: string) => `Edit “${n}”`,
     edit: "Edit",
-    name: "Name",
+    search: "Search",
+    searchPh: "Name or slug",
+    apply: "Search",
+    clear: "Clear",
+    secBasics: "Basics",
+    name: "Arabic name",
+    nameEn: "English name",
     slug: "Slug",
-    sort: "Sort order",
-    description: "Description",
+    slugHint: "Lowercase Latin letters, digits and dashes.",
+    sort: "Display order",
+    sortHint: "Lower numbers show first.",
+    active: "Active (visible in store)",
+    secDesc: "Description",
+    description: "Text shown at the top of the store page",
+    seo: "SEO",
     seoTitle: "SEO title",
     seoDesc: "SEO description",
-    active: "Active",
     save: "Save changes",
     create: "Add",
+    saving: "Saving…",
     cancel: "Cancel",
-    cols: ["Name", "Slug", "Status", ""],
-    pill: ["Active", "Paused"] as [string, string],
+    close: "Close",
+    cols: ["Name", "Slug", "Order", "Linked to product", "Status", ""],
+    linked: "Yes",
+    notLinked: "No",
+    on: "Active",
+    off: "Paused",
     del: "Delete",
-    confirmDel: (n: string) => `I confirm deleting "${n}"`,
-    confirm: "Confirm delete",
+    delTitle: (n: string) => `Delete “${n}”?`,
+    delBody: "It will be removed from the store and unlinked from the product. This cannot be undone.",
+    delLinked: "Currently linked to the product — the link will be removed.",
+    delConfirm: "Delete permanently",
+    empty: "Nothing here yet",
+    emptyBody: "Add the first item to organise how the product is presented in the store.",
+    noMatch: "No matching results",
   },
 };
 
@@ -56,74 +109,109 @@ export async function taxonomyTitle(kind: TaxonomyTable) {
   return T[await getLocale()].titles[kind];
 }
 
-export async function TaxonomyAdmin({ kind, sp }: { kind: TaxonomyTable; sp: { ok?: string; error?: string; edit?: string } }) {
+type Row = Awaited<ReturnType<typeof listTaxonomyAdmin>>[number];
+
+export async function TaxonomyAdmin({ kind, sp }: { kind: TaxonomyTable; sp: { ok?: string; error?: string; q?: string } }) {
   await requireStaff();
-  const t = T[await getLocale()];
-  const rows = await listTaxonomyAdmin(kind);
-  const e = rows.find((r) => r.id === sp.edit);
+  const locale = await getLocale();
+  const t = T[locale];
+  const [rows, usage] = await Promise.all([listTaxonomyAdmin(kind), taxonomyUsage(kind)]);
+  const q = sp.q?.trim().toLowerCase();
+  const filtered = rows.filter((r) => !q || r.name.toLowerCase().includes(q) || (r.nameEn ?? "").toLowerCase().includes(q) || r.slug.includes(q));
+  const back = `/admin/${kind}${sp.q ? `?q=${encodeURIComponent(sp.q)}` : ""}`;
+
+  const form = (e?: Row) => (
+    <form action={saveTaxonomyAction} className="space-y-6">
+      <input type="hidden" name="kind" value={kind} />
+      {e && <input type="hidden" name="id" value={e.id} />}
+      <FormSection title={t.secBasics}>
+        <Field label={t.name} required><input name="name" required dir="auto" defaultValue={e?.name} className={inputCls} /></Field>
+        <Field label={t.nameEn}><input name="nameEn" dir="ltr" defaultValue={e?.nameEn ?? ""} className={inputCls} /></Field>
+        <Field label={t.slug} required hint={t.slugHint}><input name="slug" required dir="ltr" pattern="[a-z0-9]+(-[a-z0-9]+)*" defaultValue={e?.slug} className={cn(inputCls, "font-mono")} /></Field>
+        <Field label={t.sort} hint={t.sortHint}><input name="sortOrder" type="number" defaultValue={e?.sortOrder ?? 0} className={inputCls} /></Field>
+        <CheckRow name="active" label={t.active} defaultChecked={e?.active ?? true} className="sm:col-span-2" />
+      </FormSection>
+      <FormSection title={t.secDesc} cols={1}>
+        <Field label={t.description}><textarea name="description" dir="auto" rows={3} defaultValue={e?.description} className={cn(inputCls, "py-2")} /></Field>
+      </FormSection>
+      <details className="rounded-md border border-border">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center px-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">{t.seo}</summary>
+        <div className="grid grid-cols-1 gap-4 border-t border-border p-3">
+          <Field label={t.seoTitle} hint="≤ 70"><input name="seoTitle" dir="auto" maxLength={70} defaultValue={e?.seoTitle ?? ""} className={inputCls} /></Field>
+          <Field label={t.seoDesc} hint="≤ 170"><textarea name="seoDescription" dir="auto" rows={2} maxLength={170} defaultValue={e?.seoDescription ?? ""} className={cn(inputCls, "py-2")} /></Field>
+        </div>
+      </details>
+      <OverlayFooter cancelLabel={t.cancel}>
+        <SubmitButton className={btnCls} pendingLabel={t.saving}>{e ? t.save : t.create}</SubmitButton>
+      </OverlayFooter>
+    </form>
+  );
+  const addButton = (
+    <Overlay trigger={<><Plus className="size-4" aria-hidden /> {t.add(t.singular[kind])}</>} triggerClassName={btnCls} title={t.add(t.singular[kind])} closeLabel={t.close}>
+      {form()}
+    </Overlay>
+  );
+
   return (
     <>
-      <PageTitle description={t.count(rows.length)}>{t.titles[kind]}</PageTitle>
+      <AdminPageHeader title={t.titles[kind]} description={t.descs[kind]} primary={rows.length > 0 && addButton} />
       <Flash sp={sp} />
-      <Section
-        className="mb-6"
-        title={
-          <span className="flex items-center gap-2">
-            {e ? <Pencil className="size-4 text-primary" aria-hidden /> : <Plus className="size-4 text-primary" aria-hidden />}
-            {e ? `${t.edit} — ${e.name}` : t.add}
-          </span>
-        }
-        actions={
-          e && (
-            <Link href="?" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={t.cancel}>
-              <X className="size-4" />
-            </Link>
-          )
-        }
-      >
-        <form action={saveTaxonomyAction} className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <input type="hidden" name="kind" value={kind} />
-          {e && <input type="hidden" name="id" value={e.id} />}
-          <Field label={t.name}><input name="name" required dir="auto" defaultValue={e?.name} className={inputCls} /></Field>
-          <Field label={t.slug}><input name="slug" required defaultValue={e?.slug} dir="ltr" className={inputCls} /></Field>
-          <Field label={t.sort}><input name="sortOrder" type="number" defaultValue={e?.sortOrder ?? 0} className={inputCls} /></Field>
-          <Field label={t.description} className="sm:col-span-3"><textarea name="description" dir="auto" rows={3} defaultValue={e?.description} className={cn(inputCls, "py-2")} /></Field>
-          <Field label={t.seoTitle} hint="≤ 70"><input name="seoTitle" dir="auto" maxLength={70} defaultValue={e?.seoTitle ?? ""} className={inputCls} /></Field>
-          <Field label={t.seoDesc} hint="≤ 170"><input name="seoDescription" dir="auto" maxLength={170} defaultValue={e?.seoDescription ?? ""} className={inputCls} /></Field>
-          <div className="sm:pt-[1.625rem]"><CheckRow name="active" label={t.active} defaultChecked={e?.active ?? true} /></div>
-          <div className="flex gap-2 border-t border-border pt-4 sm:col-span-3">
-            <button className={btnCls}>{e ? t.save : t.create}</button>
-            {e && <Link href="?" className={btnOutlineCls}>{t.cancel}</Link>}
-          </div>
-        </form>
-      </Section>
-      <Table head={t.cols} empty={!rows.length}>
-        {rows.map((r) => (
-          <tr key={r.id} className={r.id === e?.id ? "bg-accent/50" : undefined}>
-            <td className="font-medium">{r.name}</td>
-            <td dir="ltr" className="font-mono text-xs text-muted-foreground">{r.slug}</td>
-            <td><StatusPill on={r.active} labels={t.pill} /></td>
-            <td>
-              <div className="flex items-start justify-end gap-1">
-                <Link href={`?edit=${r.id}`} className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-accent">
-                  <Pencil className="size-3.5" aria-hidden /> {t.edit}
-                </Link>
-                <details className="group">
-                  <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-destructive transition-colors hover:bg-red-50 [&::-webkit-details-marker]:hidden">
-                    <Trash2 className="size-3.5" aria-hidden /> {t.del}
-                  </summary>
-                  <form action={deleteTaxonomyAction} className="mt-2 w-60 space-y-3 rounded-xl border border-red-100 bg-red-50/50 p-3">
-                    <input type="hidden" name="kind" value={kind} />
-                    <input type="hidden" name="id" value={r.id} />
-                    <ConfirmBox label={t.confirmDel(r.name)} />
-                    <button className="min-h-9 w-full rounded-lg bg-destructive px-3 text-sm font-semibold text-white hover:bg-destructive/90">{t.confirm}</button>
-                  </form>
-                </details>
-              </div>
-            </td>
-          </tr>
-        ))}
-      </Table>
+      {rows.length === 0 ? (
+        <EmptyState icon={FolderTree} title={t.empty} action={addButton}>{t.emptyBody}</EmptyState>
+      ) : (
+        <>
+          {rows.length > 8 && (
+            <FilterBar label={t.search}>
+              <label className="min-w-0 flex-1 basis-56 sm:max-w-sm">
+                <span className="mb-1 block text-xs font-medium text-muted-foreground">{t.search}</span>
+                <input type="search" name="q" defaultValue={sp.q} placeholder={t.searchPh} className={inputCls} />
+              </label>
+              <button className={btnOutlineCls}>{t.apply}</button>
+              {sp.q && <Link href={`/admin/${kind}`} className={btnGhostCls}>{t.clear}</Link>}
+            </FilterBar>
+          )}
+          {filtered.length === 0 ? (
+            <EmptyState icon={SearchX} title={t.noMatch} />
+          ) : (
+            <Table head={t.cols} caption={t.titles[kind]}>
+              {filtered.map((r) => {
+                const used = usage.get(r.id) ?? 0;
+                return (
+                  <tr key={r.id} className={cn(!r.active && "text-muted-foreground")}>
+                    <td>
+                      <span className="font-medium">{r.name}</span>
+                      {r.nameEn && <span className="block text-xs text-muted-foreground" dir="ltr">{r.nameEn}</span>}
+                    </td>
+                    <td dir="ltr" className="font-mono text-xs text-muted-foreground">{r.slug}</td>
+                    <td className="tabular">{r.sortOrder}</td>
+                    <td>{used > 0 ? t.linked : <span className="text-muted-foreground">{t.notLinked}</span>}</td>
+                    <td><StatusBadge tone={r.active ? "success" : "neutral"}>{r.active ? t.on : t.off}</StatusBadge></td>
+                    <td className="w-px">
+                      <div className="flex items-center justify-end gap-0.5">
+                        <Overlay trigger={<Pencil className="size-4" aria-hidden />} triggerClassName={iconBtnCls} triggerLabel={`${t.edit} — ${r.name}`} title={t.editTitle(r.name)} closeLabel={t.close}>
+                          {form(r)}
+                        </Overlay>
+                        <Overlay kind="modal" trigger={<Trash2 className="size-4" aria-hidden />} triggerClassName={cn(iconBtnCls, "hover:bg-destructive-soft hover:text-destructive")} triggerLabel={`${t.del} — ${r.name}`} title={t.delTitle(r.name)} closeLabel={t.close}>
+                          <form action={deleteTaxonomyAction}>
+                            <input type="hidden" name="kind" value={kind} />
+                            <input type="hidden" name="id" value={r.id} />
+                            <input type="hidden" name="back" value={back} />
+                            <p className="text-sm">{t.delBody}</p>
+                            {used > 0 && <p className="mt-2 text-sm text-warning">{t.delLinked}</p>}
+                            <OverlayFooter cancelLabel={t.cancel}>
+                              <SubmitButton className={btnDangerCls} pendingLabel={t.saving}>{t.delConfirm}</SubmitButton>
+                            </OverlayFooter>
+                          </form>
+                        </Overlay>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </Table>
+          )}
+        </>
+      )}
     </>
   );
 }
